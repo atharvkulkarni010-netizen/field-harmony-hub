@@ -30,7 +30,6 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', userRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/task-assignments', taskAssignmentRoutes);
