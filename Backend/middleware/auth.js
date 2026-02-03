@@ -1,14 +1,21 @@
 import jwt from 'jsonwebtoken';
+import TokenBlacklist from '../models/TokenBlacklist.js';
 
 const secret = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
-export const verifyToken = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ message: 'No token provided' });
   }
 
   try {
+    // Check if token is blacklisted
+    const isBlacklisted = await TokenBlacklist.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({ message: 'Token has been invalidated' });
+    }
+
     const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();

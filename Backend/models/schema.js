@@ -180,6 +180,26 @@ export const createManagerProjectReportTable = async () => {
   console.log('Manager_Project_Report table created');
 };
 
+// Create Token Blacklist table
+export const createTokenBlacklistTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS token_blacklist (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      token TEXT NOT NULL,
+      user_id INT NOT NULL REFERENCES user(user_id),
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_token (token(255)),
+      INDEX idx_user_id (user_id),
+      INDEX idx_expires_at (expires_at)
+    );
+  `;
+  const connection = await pool.getConnection();
+  await connection.query(query);
+  connection.release();
+  console.log('Token_Blacklist table created');
+};
+
 // Create all tables
 export const createAllTables = async () => {
   try {
@@ -192,6 +212,7 @@ export const createAllTables = async () => {
     await createDailyReportTable();
     await createReportTaskTable();
     await createManagerProjectReportTable();
+    await createTokenBlacklistTable();
     console.log('All tables created successfully');
   } catch (error) {
     console.error('Error creating tables:', error);

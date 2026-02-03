@@ -6,6 +6,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
+// Protected Wrappers
+import AdminProtectedWrapper from "@/components/wrappers/AdminProtectedWrapper";
+import ManagerProtectedWrapper from "@/components/wrappers/ManagerProtectedWrapper";
+import WorkerProtectedWrapper from "@/components/wrappers/WorkerProtectedWrapper";
+
 // Pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -45,31 +50,31 @@ const App = () => (
 
             {/* Admin Routes */}
             <Route element={<DashboardLayout allowedRoles={['admin']} />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/managers" element={<Managers />} />
-              <Route path="/admin/workers" element={<Workers />} />
-              <Route path="/admin/projects" element={<Projects />} />
-              <Route path="/admin/analytics" element={<Analytics />} />
+              <Route path="/admin" element={<AdminProtectedWrapper><AdminDashboard /></AdminProtectedWrapper>} />
+              <Route path="/admin/managers" element={<AdminProtectedWrapper><Managers /></AdminProtectedWrapper>} />
+              <Route path="/admin/workers" element={<AdminProtectedWrapper><Workers /></AdminProtectedWrapper>} />
+              <Route path="/admin/projects" element={<AdminProtectedWrapper><Projects /></AdminProtectedWrapper>} />
+              <Route path="/admin/analytics" element={<AdminProtectedWrapper><Analytics /></AdminProtectedWrapper>} />
             </Route>
 
             {/* Manager Routes */}
             <Route element={<DashboardLayout allowedRoles={['manager']} />}>
-              <Route path="/manager" element={<ManagerDashboard />} />
-              <Route path="/manager/projects" element={<Projects />} />
-              <Route path="/manager/tasks" element={<ManagerTasks />} />
-              <Route path="/manager/attendance" element={<Workers />} />
-              <Route path="/manager/reports" element={<ManagerDashboard />} />
-              <Route path="/manager/leave" element={<ManagerDashboard />} />
+              <Route path="/manager" element={<ManagerProtectedWrapper><ManagerDashboard /></ManagerProtectedWrapper>} />
+              <Route path="/manager/projects" element={<ManagerProtectedWrapper><Projects /></ManagerProtectedWrapper>} />
+              <Route path="/manager/tasks" element={<ManagerProtectedWrapper><ManagerTasks /></ManagerProtectedWrapper>} />
+              <Route path="/manager/attendance" element={<ManagerProtectedWrapper><Workers /></ManagerProtectedWrapper>} />
+              <Route path="/manager/reports" element={<ManagerProtectedWrapper><ManagerDashboard /></ManagerProtectedWrapper>} />
+              <Route path="/manager/leave" element={<ManagerProtectedWrapper><ManagerDashboard /></ManagerProtectedWrapper>} />
             </Route>
 
             {/* Worker Routes */}
             <Route element={<DashboardLayout allowedRoles={['worker']} />}>
-              <Route path="/worker" element={<WorkerDashboard />} />
-              <Route path="/worker/attendance" element={<WorkerAttendance />} />
-              <Route path="/worker/tasks" element={<WorkerTasks />} />
-              <Route path="/worker/report" element={<SubmitReport />} />
-              <Route path="/worker/leave" element={<ApplyLeave />} />
-              <Route path="/worker/history" element={<WorkerAttendance />} />
+              <Route path="/worker" element={<WorkerProtectedWrapper><WorkerDashboard /></WorkerProtectedWrapper>} />
+              <Route path="/worker/attendance" element={<WorkerProtectedWrapper><WorkerAttendance /></WorkerProtectedWrapper>} />
+              <Route path="/worker/tasks" element={<WorkerProtectedWrapper><WorkerTasks /></WorkerProtectedWrapper>} />
+              <Route path="/worker/report" element={<WorkerProtectedWrapper><SubmitReport /></WorkerProtectedWrapper>} />
+              <Route path="/worker/leave" element={<WorkerProtectedWrapper><ApplyLeave /></WorkerProtectedWrapper>} />
+              <Route path="/worker/history" element={<WorkerProtectedWrapper><WorkerAttendance /></WorkerProtectedWrapper>} />
             </Route>
 
             {/* Catch-all */}

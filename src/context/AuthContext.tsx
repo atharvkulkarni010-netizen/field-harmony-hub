@@ -22,32 +22,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users for testing
+// Demo users for testing (matching seeded database)
 const DEMO_USERS: Record<string, { password: string; user: User }> = {
-  'admin@ngo.org': {
+  'admin@ngo.com': {
     password: 'admin123',
     user: {
       id: '1',
-      email: 'admin@ngo.org',
-      name: 'Sarah Green',
+      email: 'admin@ngo.com',
+      name: 'Admin User',
       role: 'admin',
     },
   },
-  'manager@ngo.org': {
+  'john.manager@ngo.com': {
     password: 'manager123',
     user: {
       id: '2',
-      email: 'manager@ngo.org',
-      name: 'John Forest',
+      email: 'john.manager@ngo.com',
+      name: 'John Manager',
       role: 'manager',
     },
   },
-  'worker@ngo.org': {
+  'worker1@ngo.com': {
     password: 'worker123',
     user: {
       id: '3',
-      email: 'worker@ngo.org',
-      name: 'Maria Rivers',
+      email: 'worker1@ngo.com',
+      name: 'Worker One',
       role: 'worker',
       managerId: '2',
     },
@@ -58,11 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [shouldLogout, setShouldLogout] = useState(false);
 
+  // Effect to load auth data on mount
   useEffect(() => {
-    // Check for stored auth on mount
-    const storedToken = sessionStorage.getItem('auth_token');
-    const storedUser = sessionStorage.getItem('auth_user');
+    const storedToken = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+    const storedUser = sessionStorage.getItem('auth_user') || localStorage.getItem('auth_user');
     
     if (storedToken && storedUser) {
       setToken(storedToken);
@@ -70,6 +71,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(false);
   }, []);
+
+  // Effect to sync user state to storage
+  useEffect(() => {
+    if (user && token) {
+      // Store in both sessionStorage and localStorage for persistence
+      sessionStorage.setItem('auth_token', token);
+      sessionStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('auth_user', JSON.stringify(user));
+    }
+  }, [user, token]);
+
+  // Effect to handle logout cleanup
+  useEffect(() => {
+    if (shouldLogout) {
+      // Clear all storage locations
+      sessionStorage.removeItem('auth_token');
+      sessionStorage.removeItem('auth_user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      
+      // Reset logout flag
+      setShouldLogout(false);
+      
+      // Redirect after cleanup
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    }
+  }, [shouldLogout]);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
@@ -87,18 +119,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Generate mock JWT
     const mockToken = `jwt_${demoUser.user.role}_${Date.now()}`;
     
+    // Setting state will trigger the storage sync effect
     setUser(demoUser.user);
     setToken(mockToken);
-    sessionStorage.setItem('auth_token', mockToken);
-    sessionStorage.setItem('auth_user', JSON.stringify(demoUser.user));
     setIsLoading(false);
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('auth_user');
+  const logout = async () => {
+    try {
+      // Only call backend if we had a token
+      const currentToken = token || sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+      if (currentToken) {
+        // Call backend logout endpoint
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentToken}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout API error (continuing with local logout):', error);
+      // Continue with local logout even if API call fails
+    } finally {
+      // Trigger logout cleanup effect
+      setShouldLogout(true);
+    }
   };
 
   return (

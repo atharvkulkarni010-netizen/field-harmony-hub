@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Leaf, Eye, EyeOff, Mail, Lock, TreeDeciduous, Mountain, Waves } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios'
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -16,32 +17,106 @@ export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Backend API configuration
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  // Login function that calls the backend
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+        email,
+        password
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      // Re-throw the original error to preserve axios error information
+      throw error;
+    }
+  };
+
+  // Create axios instance with request interceptor to add auth token
+  const apiClient = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  // Add request interceptor to automatically include auth token
+  apiClient.interceptors.request.use(
+    (config) => {
+      const token = sessionStorage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Updated handleSubmit to use backend API
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Call backend API
+      const loginResponse = await handleLogin(email, password);
+      
+      // Store user data and token
+      sessionStorage.setItem('auth_token', loginResponse.token);
+      // Convert role to lowercase to match frontend UserRole type
+      const userData = {
+        ...loginResponse.user,
+        role: loginResponse.user.role.toLowerCase()
+      };
+      sessionStorage.setItem('auth_user', JSON.stringify(userData));
+      
+      // Update auth context
       await login(email, password);
       
       // Get user role and redirect
-      const storedUser = sessionStorage.getItem('auth_user');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        const roleRedirects: Record<UserRole, string> = {
-          admin: '/admin',
-          manager: '/manager',
-          worker: '/worker',
-        };
-        navigate(roleRedirects[user.role as UserRole]);
-        toast({
-          title: 'Welcome back!',
-          description: `Logged in as ${user.name}`,
-        });
-      }
+      const roleRedirects: Record<UserRole, string> = {
+        admin: '/admin',
+        manager: '/manager',
+        worker: '/worker',
+      };
+      
+      navigate(roleRedirects[userData.role as UserRole]);
+      
+      toast({
+        title: 'Welcome back!',
+        description: `Logged in as ${loginResponse.user.name}`,
+      });
     } catch (error) {
+      console.error('Login error:', error);
+      let errorMessage = 'Invalid email or password. Please try again.';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // Server responded with error status
+          errorMessage = error.response.data?.message || `Login failed: ${error.response.status} ${error.response.statusText}`;
+        } else if (error.request) {
+          // Request was made but no response received
+          errorMessage = 'Network error: Unable to reach server. Please check your connection.';
+        } else {
+          // Something else happened
+          errorMessage = 'Login request failed. Please try again.';
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'Login failed',
-        description: 'Invalid email or password. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -49,11 +124,12 @@ export default function Login() {
     }
   };
 
+  // Demo login function (can be kept as is or modified to call backend demo endpoints)
   const demoLogin = async (role: UserRole) => {
     const demoCredentials: Record<UserRole, { email: string; password: string }> = {
-      admin: { email: 'admin@ngo.org', password: 'admin123' },
-      manager: { email: 'manager@ngo.org', password: 'manager123' },
-      worker: { email: 'worker@ngo.org', password: 'worker123' },
+      admin: { email: 'admin@ngo.com', password: 'admin123' },
+      manager: { email: 'john.manager@ngo.com', password: 'manager123' },
+      worker: { email: 'worker1@ngo.com', password: 'worker123' },
     };
     
     setEmail(demoCredentials[role].email);
