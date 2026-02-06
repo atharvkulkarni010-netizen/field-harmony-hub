@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.ngo-fieldops.example.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Create axios instance with interceptors
 const api = axios.create({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,53 +24,39 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
 
-const demoProjects = [
-  {
-    id: '1',
-    name: 'River Cleanup Initiative',
-    description: 'Cleaning up the local river system and restoring natural habitats.',
-    manager: 'John Forest',
-    status: 'active',
-    progress: 65,
-    tasks: { total: 24, completed: 15 },
-    workers: 8,
-    location: 'Northern River Basin',
-    startDate: '2024-01-15',
-    endDate: '2024-06-30',
-    icon: Waves,
-  },
-  {
-    id: '2',
-    name: 'Forest Restoration Project',
-    description: 'Replanting native trees and monitoring forest health in degraded areas.',
-    manager: 'Emily Rivers',
-    status: 'active',
-    progress: 40,
-    tasks: { total: 30, completed: 12 },
-    workers: 12,
-    location: 'Eastern Forest Reserve',
-    startDate: '2024-02-01',
-    endDate: '2024-12-31',
-    icon: TreeDeciduous,
-  },
-  {
-    id: '3',
-    name: 'Mountain Trail Conservation',
-    description: 'Maintaining hiking trails and protecting mountain ecosystem.',
-    manager: 'Michael Oak',
-    status: 'planning',
-    progress: 10,
-    tasks: { total: 18, completed: 2 },
-    workers: 5,
-    location: 'Blue Mountain Range',
-    startDate: '2024-03-01',
-    endDate: '2024-09-30',
-    icon: Mountain,
-  },
-];
+// Project interface
+interface Project {
+  project_id: number;
+  name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  status: 'Yet to start' | 'Ongoing' | 'In Review' | 'Completed' | 'planning' | 'active' | 'completed';
+  assigned_manager_id: number;
+  created_at: string;
+  updated_at: string;
+  manager_name?: string; // Added for display purposes
+  // Additional properties for frontend display
+  id?: string;
+  location?: string;
+  progress?: number;
+  tasks?: { total: number; completed: number };
+  workers?: number;
+  icon?: React.ComponentType<{ className?: string }>;
+}
 
-const managers = ['John Forest', 'Emily Rivers', 'Michael Oak', 'Unassigned'];
+// Manager interface
+interface Manager {
+  user_id: number;
+  name: string;
+  email: string;
+  role: string;
+  manager_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
 
 const statusStyles = {
   active: 'status-active',
@@ -80,44 +66,155 @@ const statusStyles = {
 };
 
 export default function Projects() {
-  const [projects, setProjects] = useState(demoProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({
     name: '',
     description: '',
-    manager: '',
-    location: '',
-    startDate: '',
-    endDate: '',
+    assigned_manager_id: '',
+    start_date: '',
+    end_date: '',
   });
   const { toast } = useToast();
+
+  // Fetch projects and managers from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        
+        // Fetch projects
+        const projectsResponse = await axios.get('http://localhost:3000/api/projects', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // Fetch managers for dropdown
+        const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // Combine project data with manager names for display
+        const projectsWithManagers = projectsResponse.data.map((project: Project) => {
+          const manager = managersResponse.data.find((m: Manager) => m.user_id === project.assigned_manager_id);
+          return {
+            ...project,
+            manager_name: manager ? manager.name : 'Unassigned',
+            // Convert backend status to frontend format
+            status: project.status === 'Yet to start' ? 'planning' : 
+                   project.status === 'Ongoing' ? 'active' : 
+                   project.status === 'In Review' ? 'active' : 
+                   'completed',
+            // Mock progress and task data since backend doesn't provide these yet
+            progress: project.status === 'Completed' ? 100 : 
+                     project.status === 'Ongoing' ? 50 : 
+                     project.status === 'In Review' ? 75 : 0,
+            tasks: { total: 10, completed: project.status === 'Completed' ? 10 : project.status === 'Ongoing' ? 5 : 0 },
+            workers: 5,
+            location: 'Location TBD',
+            icon: TreeDeciduous
+          };
+        });
+        
+        setProjects(projectsWithManagers);
+        setManagers(managersResponse.data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load projects and managers',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
 
   const filteredProjects = projects.filter(
     (p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.manager.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.manager_name && p.manager_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       p.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    const project = {
-      id: Date.now().toString(),
-      ...newProject,
-      status: 'planning' as const,
-      progress: 0,
-      tasks: { total: 0, completed: 0 },
-      workers: 0,
-      icon: TreeDeciduous,
-    };
-    setProjects([...projects, project]);
-    setNewProject({ name: '', description: '', manager: '', location: '', startDate: '', endDate: '' });
-    setIsDialogOpen(false);
-    toast({
-      title: 'Project Created',
-      description: `${newProject.name} has been created and assigned to ${newProject.manager || 'unassigned'}.`,
-    });
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      
+      const projectData = {
+        name: newProject.name,
+        description: newProject.description,
+        start_date: newProject.start_date,
+        end_date: newProject.end_date,
+        assigned_manager_id: parseInt(newProject.assigned_manager_id)
+      };
+      
+      const response = await axios.post('http://localhost:3000/api/projects', projectData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Refresh projects list
+      const projectsResponse = await axios.get('http://localhost:3000/api/projects', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Fetch managers again to get the manager name
+      const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Combine project data with manager names for display
+      const projectsWithManagers = projectsResponse.data.map((project: Project) => {
+        const manager = managersResponse.data.find((m: Manager) => m.user_id === project.assigned_manager_id);
+        return {
+          ...project,
+          manager_name: manager ? manager.name : 'Unassigned',
+          status: project.status === 'Yet to start' ? 'planning' : 
+                 project.status === 'Ongoing' ? 'active' : 
+                 project.status === 'In Review' ? 'active' : 
+                 'completed',
+          progress: project.status === 'Completed' ? 100 : 
+                   project.status === 'Ongoing' ? 50 : 
+                   project.status === 'In Review' ? 75 : 0,
+          tasks: { total: 10, completed: project.status === 'Completed' ? 10 : project.status === 'Ongoing' ? 5 : 0 },
+          workers: 5,
+          location: 'Location TBD',
+          icon: TreeDeciduous
+        };
+      });
+      
+      setProjects(projectsWithManagers);
+      
+      setNewProject({ name: '', description: '', assigned_manager_id: '', start_date: '', end_date: '' });
+      setIsDialogOpen(false);
+      toast({
+        title: 'Project Created',
+        description: `${newProject.name} has been created successfully.`,
+      });
+    } catch (error: any) {
+      console.error('Error creating project:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to create project',
+        variant: 'destructive'
+      });
+    }
   };
 
   return (
@@ -162,35 +259,23 @@ export default function Projects() {
                   className="rounded-xl min-h-[80px]"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="manager">Assign Manager</Label>
-                  <Select
-                    value={newProject.manager}
-                    onValueChange={(value) => setNewProject({ ...newProject, manager: value })}
-                  >
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Select manager" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {managers.map((manager) => (
-                        <SelectItem key={manager} value={manager}>
-                          {manager}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={newProject.location}
-                    onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
-                    placeholder="Project location"
-                    className="rounded-xl"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="manager">Assign Manager</Label>
+                <Select
+                  value={newProject.assigned_manager_id}
+                  onValueChange={(value) => setNewProject({ ...newProject, assigned_manager_id: value })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {managers.map((manager) => (
+                      <SelectItem key={manager.user_id} value={manager.user_id.toString()}>
+                        {manager.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -198,8 +283,8 @@ export default function Projects() {
                   <Input
                     id="startDate"
                     type="date"
-                    value={newProject.startDate}
-                    onChange={(e) => setNewProject({ ...newProject, startDate: e.target.value })}
+                    value={newProject.start_date}
+                    onChange={(e) => setNewProject({ ...newProject, start_date: e.target.value })}
                     className="rounded-xl"
                   />
                 </div>
@@ -208,8 +293,8 @@ export default function Projects() {
                   <Input
                     id="endDate"
                     type="date"
-                    value={newProject.endDate}
-                    onChange={(e) => setNewProject({ ...newProject, endDate: e.target.value })}
+                    value={newProject.end_date}
+                    onChange={(e) => setNewProject({ ...newProject, end_date: e.target.value })}
                     className="rounded-xl"
                   />
                 </div>
@@ -238,13 +323,21 @@ export default function Projects() {
         />
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading projects...</p>
+        </div>
+      )}
+
       {/* Projects Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredProjects.map((project, index) => {
+      {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredProjects.map((project, index) => {
           const Icon = project.icon;
           return (
             <Card
-              key={project.id}
+              key={project.project_id}
               className="nature-card animate-fade-in overflow-hidden"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -279,7 +372,7 @@ export default function Projects() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Users className="w-4 h-4" />
-                    <span>{project.manager}</span>
+                    <span>{project.manager_name}</span>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin className="w-4 h-4" />
@@ -287,7 +380,7 @@ export default function Projects() {
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar className="w-4 h-4" />
-                    <span>{new Date(project.startDate).toLocaleDateString()}</span>
+                    <span>{new Date(project.start_date).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <ClipboardList className="w-4 h-4" />
@@ -320,8 +413,9 @@ export default function Projects() {
           );
         })}
       </div>
+      )}
 
-      {filteredProjects.length === 0 && (
+      {!loading && filteredProjects.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No projects found matching your search.</p>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,49 +13,54 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Search, Mail, Phone, MapPin, FolderKanban, Users } from 'lucide-react';
+import { UserPlus, Search, Mail, FolderKanban, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios';
 
-// Demo managers
-const demoManagers = [
-  {
-    id: '1',
-    name: 'John Forest',
-    email: 'john.forest@ngo.org',
-    phone: '+1 234 567 8901',
-    location: 'Northern Region',
-    projects: 5,
-    workers: 12,
-    status: 'active',
-  },
-  {
-    id: '2',
-    name: 'Emily Rivers',
-    email: 'emily.rivers@ngo.org',
-    phone: '+1 234 567 8902',
-    location: 'Coastal Area',
-    projects: 3,
-    workers: 8,
-    status: 'active',
-  },
-  {
-    id: '3',
-    name: 'Michael Oak',
-    email: 'michael.oak@ngo.org',
-    phone: '+1 234 567 8903',
-    location: 'Mountain Zone',
-    projects: 4,
-    workers: 15,
-    status: 'active',
-  },
-];
+// Manager interface
+interface Manager {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+  manager_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function Managers() {
-  const [managers, setManagers] = useState(demoManagers);
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newManager, setNewManager] = useState({ name: '', email: '', phone: '', location: '' });
+  const [newManager, setNewManager] = useState({ name: '', email: '' });
   const { toast } = useToast();
+
+  // Fetch managers from API
+  useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const response = await axios.get('http://localhost:3000/api/users/managers', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        setManagers(response.data);
+      } catch (error) {
+        console.error('Error fetching managers:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load managers',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchManagers();
+  }, [toast]);
 
   const filteredManagers = managers.filter(
     (m) =>
@@ -63,22 +68,43 @@ export default function Managers() {
       m.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleCreateManager = (e: React.FormEvent) => {
+  const handleCreateManager = async (e: React.FormEvent) => {
     e.preventDefault();
-    const manager = {
-      id: Date.now().toString(),
-      ...newManager,
-      projects: 0,
-      workers: 0,
-      status: 'active',
-    };
-    setManagers([...managers, manager]);
-    setNewManager({ name: '', email: '', phone: '', location: '' });
-    setIsDialogOpen(false);
-    toast({
-      title: 'Manager Created',
-      description: `${newManager.name} has been added successfully.`,
-    });
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await axios.post('http://localhost:3000/api/users/register', {
+        name: newManager.name,
+        email: newManager.email,
+        password: 'TempPass123!',
+        role: 'MANAGER'
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Refresh managers list
+      const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      setManagers(managersResponse.data);
+      
+      setNewManager({ name: '', email: '' });
+      setIsDialogOpen(false);
+      toast({
+        title: 'Manager Created',
+        description: `${newManager.name} has been added successfully.`,
+      });
+    } catch (error: any) {
+      console.error('Error creating manager:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to create manager',
+        variant: 'destructive'
+      });
+    }
   };
 
   return (
@@ -125,27 +151,7 @@ export default function Managers() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={newManager.phone}
-                  onChange={(e) => setNewManager({ ...newManager, phone: e.target.value })}
-                  placeholder="Enter phone number"
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Region/Location</Label>
-                <Input
-                  id="location"
-                  value={newManager.location}
-                  onChange={(e) => setNewManager({ ...newManager, location: e.target.value })}
-                  placeholder="Enter assigned region"
-                  className="rounded-xl"
-                />
-              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
                   Cancel
@@ -170,14 +176,22 @@ export default function Managers() {
         />
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">Loading managers...</p>
+        </div>
+      )}
+
       {/* Managers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredManagers.map((manager, index) => (
-          <Card
-            key={manager.id}
-            className="nature-card animate-fade-in"
-            style={{ animationDelay: `${index * 0.1}s` }}
-          >
+      {!loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredManagers.map((manager, index) => (
+            <Card
+              key={manager.user_id}
+              className="nature-card animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -189,7 +203,7 @@ export default function Managers() {
                   <div>
                     <CardTitle className="text-lg font-display">{manager.name}</CardTitle>
                     <Badge variant="outline" className="status-active mt-1">
-                      Active
+                      {manager.role}
                     </Badge>
                   </div>
                 </div>
@@ -200,23 +214,16 @@ export default function Managers() {
                 <Mail className="w-4 h-4" />
                 <span>{manager.email}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4" />
-                <span>{manager.phone}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>{manager.location}</span>
-              </div>
+
               <div className="flex gap-4 pt-3 border-t border-border">
                 <div className="flex items-center gap-2 text-sm">
                   <FolderKanban className="w-4 h-4 text-primary" />
-                  <span className="font-medium">{manager.projects}</span>
+                  <span className="font-medium">0</span>
                   <span className="text-muted-foreground">Projects</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="w-4 h-4 text-secondary" />
-                  <span className="font-medium">{manager.workers}</span>
+                  <span className="font-medium">0</span>
                   <span className="text-muted-foreground">Workers</span>
                 </div>
               </div>
@@ -224,6 +231,7 @@ export default function Managers() {
           </Card>
         ))}
       </div>
+      )}
 
       {filteredManagers.length === 0 && (
         <div className="text-center py-12">

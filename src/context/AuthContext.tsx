@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 
 export type UserRole = 'admin' | 'manager' | 'worker';
 
 export interface User {
-  id: string;
+  user_id: string;
   email: string;
   name: string;
   role: UserRole;
-  avatar?: string;
-  managerId?: string;
+  manager_id?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
@@ -22,37 +24,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users for testing (matching seeded database)
-const DEMO_USERS: Record<string, { password: string; user: User }> = {
-  'admin@ngo.com': {
-    password: 'admin123',
-    user: {
-      id: '1',
-      email: 'admin@ngo.com',
-      name: 'Admin User',
-      role: 'admin',
-    },
-  },
-  'john.manager@ngo.com': {
-    password: 'manager123',
-    user: {
-      id: '2',
-      email: 'john.manager@ngo.com',
-      name: 'John Manager',
-      role: 'manager',
-    },
-  },
-  'worker1@ngo.com': {
-    password: 'worker123',
-    user: {
-      id: '3',
-      email: 'worker1@ngo.com',
-      name: 'Worker One',
-      role: 'worker',
-      managerId: '2',
-    },
-  },
-};
+// Backend API configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -62,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Effect to load auth data on mount
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+    const storedToken = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token') || sessionStorage.getItem('token') || localStorage.getItem('token');
     const storedUser = sessionStorage.getItem('auth_user') || localStorage.getItem('auth_user');
     
     if (storedToken && storedUser) {
@@ -80,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionStorage.setItem('auth_user', JSON.stringify(user));
       localStorage.setItem('auth_token', token);
       localStorage.setItem('auth_user', JSON.stringify(user));
+      // Also store with original keys for compatibility
+      sessionStorage.setItem('token', token);
+      localStorage.setItem('token', token);
     }
   }, [user, token]);
 
@@ -106,23 +82,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const demoUser = DEMO_USERS[email.toLowerCase()];
-    
-    if (!demoUser || demoUser.password !== password) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+        email,
+        password
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const { token, user } = response.data;
+      
+      // Convert role to lowercase to match frontend UserRole type
+      const userData = {
+        ...user,
+        role: user.role.toLowerCase() as UserRole
+      };
+      
+      // Setting state will trigger the storage sync effect
+      setUser(userData);
+      setToken(token);
       setIsLoading(false);
-      throw new Error('Invalid email or password');
+    } catch (error) {
+      setIsLoading(false);
+      throw error;
     }
-    
-    // Generate mock JWT
-    const mockToken = `jwt_${demoUser.user.role}_${Date.now()}`;
-    
-    // Setting state will trigger the storage sync effect
-    setUser(demoUser.user);
-    setToken(mockToken);
-    setIsLoading(false);
   };
 
   const logout = async () => {
@@ -131,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentToken = token || sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
       if (currentToken) {
         // Call backend logout endpoint
-        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/logout`, {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
