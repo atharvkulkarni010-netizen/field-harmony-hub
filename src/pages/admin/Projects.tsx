@@ -24,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { projectsApi, usersApi } from '@/services/api';
 
 // Project interface
 interface Project {
@@ -81,114 +81,29 @@ export default function Projects() {
   const { toast } = useToast();
 
   // Fetch projects and managers from API
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        
-        // Fetch projects
-        const projectsResponse = await axios.get('http://localhost:3000/api/projects', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        // Fetch managers for dropdown
-        const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        // Combine project data with manager names for display
-        const projectsWithManagers = projectsResponse.data.map((project: Project) => {
-          const manager = managersResponse.data.find((m: Manager) => m.user_id === project.assigned_manager_id);
-          return {
-            ...project,
-            manager_name: manager ? manager.name : 'Unassigned',
-            // Convert backend status to frontend format
-            status: project.status === 'Yet to start' ? 'planning' : 
-                   project.status === 'Ongoing' ? 'active' : 
-                   project.status === 'In Review' ? 'active' : 
-                   'completed',
-            // Mock progress and task data since backend doesn't provide these yet
-            progress: project.status === 'Completed' ? 100 : 
-                     project.status === 'Ongoing' ? 50 : 
-                     project.status === 'In Review' ? 75 : 0,
-            tasks: { total: 10, completed: project.status === 'Completed' ? 10 : project.status === 'Ongoing' ? 5 : 0 },
-            workers: 5,
-            location: 'Location TBD',
-            icon: TreeDeciduous
-          };
-        });
-        
-        setProjects(projectsWithManagers);
-        setManagers(managersResponse.data);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load projects and managers',
-          variant: 'destructive'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [toast]);
-
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.manager_name && p.manager_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      p.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      setLoading(true);
+      // Fetch projects and managers in parallel
+      const [projectsResponse, managersResponse] = await Promise.all([
+        projectsApi.getAll(),
+        usersApi.getManagers()
+      ]);
       
-      const projectData = {
-        name: newProject.name,
-        description: newProject.description,
-        start_date: newProject.start_date,
-        end_date: newProject.end_date,
-        assigned_manager_id: parseInt(newProject.assigned_manager_id)
-      };
-      
-      const response = await axios.post('http://localhost:3000/api/projects', projectData, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      // Refresh projects list
-      const projectsResponse = await axios.get('http://localhost:3000/api/projects', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      // Fetch managers again to get the manager name
-      const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const managersData = managersResponse.data;
       
       // Combine project data with manager names for display
       const projectsWithManagers = projectsResponse.data.map((project: Project) => {
-        const manager = managersResponse.data.find((m: Manager) => m.user_id === project.assigned_manager_id);
+        const manager = managersData.find((m: Manager) => m.user_id === project.assigned_manager_id);
         return {
           ...project,
           manager_name: manager ? manager.name : 'Unassigned',
+          // Convert backend status to frontend format
           status: project.status === 'Yet to start' ? 'planning' : 
                  project.status === 'Ongoing' ? 'active' : 
                  project.status === 'In Review' ? 'active' : 
                  'completed',
+          // Mock progress and task data since backend doesn't provide these yet
           progress: project.status === 'Completed' ? 100 : 
                    project.status === 'Ongoing' ? 50 : 
                    project.status === 'In Review' ? 75 : 0,
@@ -200,6 +115,45 @@ export default function Projects() {
       });
       
       setProjects(projectsWithManagers);
+      setManagers(managersData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load projects and managers',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [toast]);
+
+  const filteredProjects = projects.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.manager_name && p.manager_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.location && p.location.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const projectData = {
+        name: newProject.name,
+        description: newProject.description,
+        start_date: newProject.start_date,
+        end_date: newProject.end_date,
+        assigned_manager_id: parseInt(newProject.assigned_manager_id)
+      };
+      
+      await projectsApi.create(projectData);
+      
+      // Refresh projects list
+      await fetchData();
       
       setNewProject({ name: '', description: '', assigned_manager_id: '', start_date: '', end_date: '' });
       setIsDialogOpen(false);

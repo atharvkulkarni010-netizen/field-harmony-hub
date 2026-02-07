@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/table';
 import { UserPlus, Search, Mail, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { usersApi } from '@/services/api';
 
 // Worker interface
 interface Worker {
@@ -73,21 +73,11 @@ export default function Workers() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        
-        // Fetch workers
-        const workersResponse = await axios.get('http://localhost:3000/api/users/workers', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        // Fetch managers for dropdown
-        const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        // Fetch workers and managers
+        const [workersResponse, managersResponse] = await Promise.all([
+          usersApi.getWorkers(),
+          usersApi.getManagers()
+        ]);
         
         setWorkers(workersResponse.data);
         setManagers(managersResponse.data);
@@ -113,36 +103,32 @@ export default function Workers() {
       (managers.find(m => m.user_id === w.manager_id)?.name.toLowerCase().includes(searchTerm.toLowerCase()) || false)
   );
 
+  /* import { usersApi } from '@/services/api'; */ // Remove this line
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleCreateWorker = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const response = await axios.post('http://localhost:3000/api/users/register', {
+      await usersApi.register({
         name: newWorker.name,
         email: newWorker.email,
-        password: 'TempPass123!',
         role: 'WORKER',
         manager_id: newWorker.manager_id || null
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
       });
-      
-      // Refresh workers list
-      const workersResponse = await axios.get('http://localhost:3000/api/users/workers', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      setWorkers(workersResponse.data);
       
       setNewWorker({ name: '', email: '', manager_id: '' });
       setIsDialogOpen(false);
+
       toast({
         title: 'Worker Created',
-        description: `${newWorker.name} has been added successfully.`,
+        description: `Worker has been added successfully. Credentials sent to email.`,
       });
+      
+      // Refresh workers list in background
+      const workersResponse = await usersApi.getWorkers();
+      setWorkers(workersResponse.data);
     } catch (error: any) {
       console.error('Error creating worker:', error);
       toast({
@@ -150,6 +136,8 @@ export default function Workers() {
         description: error.response?.data?.message || 'Failed to create worker',
         variant: 'destructive'
       });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -220,8 +208,8 @@ export default function Workers() {
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1 rounded-xl gradient-forest text-primary-foreground">
-                  Create Worker
+                <Button type="submit" className="flex-1 rounded-xl gradient-forest text-primary-foreground" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Worker'}
                 </Button>
               </div>
             </form>

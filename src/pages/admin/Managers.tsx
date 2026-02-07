@@ -15,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Search, Mail, FolderKanban, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import axios from 'axios';
+import { usersApi } from '@/services/api';
 
 // Manager interface
 interface Manager {
@@ -40,12 +40,7 @@ export default function Managers() {
   useEffect(() => {
     const fetchManagers = async () => {
       try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        const response = await axios.get('http://localhost:3000/api/users/managers', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const response = await usersApi.getManagers();
         setManagers(response.data);
       } catch (error) {
         console.error('Error fetching managers:', error);
@@ -68,35 +63,31 @@ export default function Managers() {
       m.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  /* import { usersApi } from '@/services/api'; */ // Remove this line
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleCreateManager = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      const response = await axios.post('http://localhost:3000/api/users/register', {
+      await usersApi.register({
         name: newManager.name,
         email: newManager.email,
-        password: 'TempPass123!',
         role: 'MANAGER'
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
       });
-      
-      // Refresh managers list
-      const managersResponse = await axios.get('http://localhost:3000/api/users/managers', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      setManagers(managersResponse.data);
       
       setNewManager({ name: '', email: '' });
       setIsDialogOpen(false);
+      
       toast({
         title: 'Manager Created',
-        description: `${newManager.name} has been added successfully.`,
+        description: `Manager has been added successfully. Credentials sent to email.`,
       });
+
+      // Refresh managers list in background
+      const managersResponse = await usersApi.getManagers();
+      setManagers(managersResponse.data);
     } catch (error: any) {
       console.error('Error creating manager:', error);
       toast({
@@ -104,6 +95,8 @@ export default function Managers() {
         description: error.response?.data?.message || 'Failed to create manager',
         variant: 'destructive'
       });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -156,8 +149,8 @@ export default function Managers() {
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1 rounded-xl gradient-forest text-primary-foreground">
-                  Create Manager
+                <Button type="submit" className="flex-1 rounded-xl gradient-forest text-primary-foreground" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Manager'}
                 </Button>
               </div>
             </form>

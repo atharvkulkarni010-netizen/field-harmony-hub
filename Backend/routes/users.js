@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { verifyToken, authorize } from '../middleware/auth.js';
 import { checkUserHierarchy } from '../middleware/hierarchy.js';
+// import { sendWelcomeEmail } from '../services/emailService.js';
 
 const router = express.Router();
 const secret = process.env.JWT_SECRET || 'your_jwt_secret_key';
@@ -61,6 +62,9 @@ router.post('/register', verifyToken, authorize('ADMIN'), async (req, res) => {
 
     const user = await User.create(name, email, randomPassword, role, manager_id);
     
+    // Send welcome email with credentials
+    // await sendWelcomeEmail(email, name, randomPassword, role);
+
     // Return the user info without the password field
     res.status(201).json({ 
       message: 'User created successfully', 

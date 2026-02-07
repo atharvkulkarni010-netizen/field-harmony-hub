@@ -48,8 +48,8 @@ export const authApi = {
 export const usersApi = {
   getManagers: () => api.get('/users/managers'),
   getWorkers: () => api.get('/users/workers'),
-  createManager: (data: any) => api.post('/users/managers', data),
-  createWorker: (data: any) => api.post('/users/workers', data),
+  register: (data: { name: string; email: string; role: 'ADMIN' | 'MANAGER' | 'WORKER'; manager_id?: string | null }) => 
+    api.post('/users/register', data),
 };
 
 export const projectsApi = {
