@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* NGO Field Operations - Environmental Theme Design System */
+
+@layer base {
+  :root {
+    /* Nature-Inspired Color Palette */
+    --background: 88 47% 95%;
+    --foreground: 122 30% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 122 30% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 122 30% 15%;
+
+    /* Forest Green Primary */
+    --primary: 122 47% 33%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Leaf Green Secondary */
+    --secondary: 122 43% 57%;
+    --secondary-foreground: 122 30% 15%;
+
+    /* Muted - Soft sage */
+    --muted: 88 30% 90%;
+    --muted-foreground: 122 15% 40%;
+
+    /* Earth Brown Accent */
+    --accent: 16 16% 47%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Nature-inspired utilities */
+    --border: 122 20% 85%;
+    --input: 122 20% 85%;
+    --ring: 122 47% 33%;
+
+    --radius: 0.75rem;
+
+    /* Custom tokens */
+    --forest: 122 47% 33%;
+    --leaf: 122 43% 57%;
+    --earth: 16 16% 47%;
+    --sky: 199 89% 48%;
+    --sun: 45 93% 58%;
+    --moss: 88 30% 75%;
+
+    /* Gradients */
+    --gradient-forest: linear-gradient(135deg, hsl(122 47% 33%), hsl(122 43% 45%));
+    --gradient-nature: linear-gradient(180deg, hsl(88 47% 95%) 0%, hsl(122 30% 90%) 100%);
+    --gradient-earth: linear-gradient(135deg, hsl(16 16% 47%), hsl(16 20% 35%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(88 30% 98%) 100%);
+
+    /* Shadows - Soft, natural */
+    --shadow-sm: 0 2px 8px -2px hsl(122 30% 15% / 0.08);
+    --shadow-md: 0 4px 16px -4px hsl(122 30% 15% / 0.1);
+    --shadow-lg: 0 8px 32px -8px hsl(122 30% 15% / 0.12);
+    --shadow-glow: 0 0 20px hsl(122 47% 33% / 0.15);
+
+    /* Sidebar */
+    --sidebar-background: 122 30% 18%;
+    --sidebar-foreground: 88 47% 95%;
+    --sidebar-primary: 122 43% 57%;
+    --sidebar-primary-foreground: 122 30% 15%;
+    --sidebar-accent: 122 30% 25%;
+    --sidebar-accent-foreground: 88 47% 95%;
+    --sidebar-border: 122 30% 25%;
+    --sidebar-ring: 122 43% 57%;
+  }
+
+  .dark {
+    --background: 122 30% 8%;
+    --foreground: 88 47% 95%;
+    --card: 122 30% 12%;
+    --card-foreground: 88 47% 95%;
+    --popover: 122 30% 12%;
+    --popover-foreground: 88 47% 95%;
+    --primary: 122 43% 57%;
+    --primary-foreground: 122 30% 10%;
+    --secondary: 122 30% 25%;
+    --secondary-foreground: 88 47% 95%;
+    --muted: 122 30% 18%;
+    --muted-foreground: 88 30% 70%;
+    --accent: 16 20% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 122 30% 20%;
+    --input: 122 30% 20%;
+    --ring: 122 43% 57%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Quicksand', sans-serif;
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Nature Card Styling */
+  .nature-card {
+    @apply bg-card rounded-xl border border-border/50;
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+  }
+
+  .nature-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  /* Status badges */
+  .status-active {
+    @apply bg-secondary/20 text-secondary border border-secondary/30;
+  }
+
+  .status-pending {
+    @apply bg-sun/20 text-foreground border border-sun/30;
+  }
+
+  .status-completed {
+    @apply bg-primary/20 text-primary border border-primary/30;
+  }
+
+  /* Floating animation for icons */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  .float-animation {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Leaf pattern background */
+  .leaf-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5c-5 10-15 15-25 15 5-10 15-15 25-15zm0 0c5 10 15 15 25 15-5-10-15-15-25-15z' fill='%232E7D32' fill-opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  /* Pulse animation for check-in button */
+  @keyframes pulse-ring {
+    0% { transform: scale(0.95); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.7; }
+    100% { transform: scale(0.95); opacity: 1; }
+  }
+
+  .pulse-ring {
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .gradient-forest {
+    background: var(--gradient-forest);
+  }
+
+  .gradient-nature {
+    background: var(--gradient-nature);
+  }
+
+  .gradient-earth {
+    background: var(--gradient-earth);
+  }
+
+  .shadow-nature {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+}

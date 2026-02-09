@@ -1,5 +1,5 @@
 import pool from '../config/database.js';
-import User from '../models/User.js';
+import * as userService from '../services/userService.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -9,7 +9,7 @@ const seedDatabase = async () => {
     console.log('Starting database seeding...');
 
     // Create an admin user
-    const admin = await User.create(
+    const admin = await userService.createUser(
       'Admin User',
       'admin@ngo.com',
       'admin123', // This will be hashed
@@ -18,7 +18,7 @@ const seedDatabase = async () => {
     console.log('Admin user created:', admin);
 
     // Create sample managers
-    const manager1 = await User.create(
+    const manager1 = await userService.createUser(
       'John Manager',
       'john.manager@ngo.com',
       'manager123',
@@ -27,7 +27,7 @@ const seedDatabase = async () => {
     );
     console.log('Manager 1 created:', manager1);
 
-    const manager2 = await User.create(
+    const manager2 = await userService.createUser(
       'Jane Manager',
       'jane.manager@ngo.com',
       'manager123',
@@ -37,7 +37,7 @@ const seedDatabase = async () => {
     console.log('Manager 2 created:', manager2);
 
     // Create sample workers
-    const worker1 = await User.create(
+    const worker1 = await userService.createUser(
       'Worker One',
       'worker1@ngo.com',
       'worker123',
@@ -46,7 +46,7 @@ const seedDatabase = async () => {
     );
     console.log('Worker 1 created:', worker1);
 
-    const worker2 = await User.create(
+    const worker2 = await userService.createUser(
       'Worker Two',
       'worker2@ngo.com',
       'worker123',
@@ -55,7 +55,7 @@ const seedDatabase = async () => {
     );
     console.log('Worker 2 created:', worker2);
 
-    const worker3 = await User.create(
+    const worker3 = await userService.createUser(
       'Worker Three',
       'worker3@ngo.com',
       'worker123',

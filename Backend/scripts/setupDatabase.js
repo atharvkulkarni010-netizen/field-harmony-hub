@@ -1,4 +1,4 @@
-import { createAllTables } from '../models/schema.js';
+import { createAllTables } from '../config/schema.js';
 import dotenv from 'dotenv';
 
 dotenv.config();

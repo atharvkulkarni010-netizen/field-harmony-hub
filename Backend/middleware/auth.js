@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import TokenBlacklist from '../models/TokenBlacklist.js';
+import * as tokenService from '../services/tokenService.js';
 
 const secret = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -11,7 +11,7 @@ export const verifyToken = async (req, res, next) => {
 
   try {
     // Check if token is blacklisted
-    const isBlacklisted = await TokenBlacklist.isTokenBlacklisted(token);
+    const isBlacklisted = await tokenService.isTokenBlacklisted(token);
     if (isBlacklisted) {
       return res.status(401).json({ message: 'Token has been invalidated' });
     }

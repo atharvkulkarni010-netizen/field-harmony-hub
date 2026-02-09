@@ -1,4 +1,4 @@
-import User from '../models/User.js';
+import * as userService from '../services/userService.js';
 
 export const checkUserHierarchy = async (req, res, next) => {
   try {
@@ -12,7 +12,7 @@ export const checkUserHierarchy = async (req, res, next) => {
     if (user.role === 'MANAGER') {
       // Manager can only access their own workers
       if (requestedUserId && requestedUserId !== user.user_id) {
-        const targetUser = await User.findById(requestedUserId);
+        const targetUser = await userService.findUserById(requestedUserId);
         if (!targetUser || targetUser.manager_id !== user.user_id) {
           return res.status(403).json({ message: 'You can only access your team members' });
         }

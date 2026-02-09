@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { createAllTables } from './models/schema.js';
+import { createAllTables } from './config/schema.js';
 
 // Import routes
 import userRoutes from './routes/users.js';
@@ -13,6 +13,7 @@ import attendanceRoutes from './routes/attendance.js';
 import leaveRoutes from './routes/leaves.js';
 import dailyReportRoutes from './routes/daily-reports.js';
 import managerReportRoutes from './routes/manager-reports.js';
+import analyticsRoutes from './routes/analytics.js';
 
 dotenv.config();
 
@@ -22,6 +23,8 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
+
 app.use(express.urlencoded({ extended: true }));
 
 // Health check
@@ -39,6 +42,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/daily-reports', dailyReportRoutes);
 app.use('/api/manager-reports', managerReportRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
