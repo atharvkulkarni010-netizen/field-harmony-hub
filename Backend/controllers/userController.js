@@ -6,7 +6,7 @@ import crypto from 'crypto';
 export const registerUser = async (req, res) => {
   try {
     const { name, email, role } = req.body;
-    
+
     // Validate required fields
     if (!name || !email || !role) {
       return res.status(400).json({ message: 'Name, email, and role are required' });
@@ -23,18 +23,18 @@ export const registerUser = async (req, res) => {
     }
 
     const randomPassword = generateRandomPassword();
-    
+
     // Handle manager_id based on role
     let manager_id = null;
     if (role === 'WORKER') {
       // For workers, manager_id is required
       manager_id = req.body.manager_id;
-      
+
       // Validate that manager_id is provided
       if (!manager_id) {
         return res.status(400).json({ message: 'manager_id is required for WORKER role' });
       }
-      
+
       // Validate that manager_id exists and references a valid manager
       const manager = await userService.findUserById(manager_id);
       if (!manager || manager.role !== 'MANAGER') {
@@ -48,13 +48,13 @@ export const registerUser = async (req, res) => {
 
     // Create User with Verification Token (is_verified = false)
     const user = await userService.createUserWithVerification(name, email, randomPassword, role, verificationToken, manager_id);
-    
+
     // Send welcome email with credentials AND verification link
     await sendWelcomeEmail(email, name, randomPassword, role, verificationToken);
 
     // Return the user info without the password field
-    res.status(201).json({ 
-      message: 'User created successfully. A verification email has been sent.', 
+    res.status(201).json({
+      message: 'User created successfully. A verification email has been sent.',
       user: {
         user_id: user.user_id,
         name: user.name,
@@ -171,18 +171,18 @@ export const getProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     // For workers, fetch manager details
     let manager = null;
     if (user.role === 'WORKER' && user.manager_id) {
-        manager = await userService.findUserById(user.manager_id);
+      manager = await userService.findUserById(user.manager_id);
     }
-    
+
     // For managers, count workers
     let workersCount = 0;
     if (user.role === 'MANAGER') {
-        const workers = await userService.findUsersByManager(user_id);
-        workersCount = workers?.length || 0;
+      const workers = await userService.findUsersByManager(user_id);
+      workersCount = workers?.length || 0;
     }
 
     res.json({ ...user, manager, workersCount });

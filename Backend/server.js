@@ -1,8 +1,9 @@
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { createAllTables } from './config/schema.js';
 
+dotenv.config();
 // Import routes
 import userRoutes from './routes/users.js';
 import authRoutes from './routes/auth.js';
@@ -15,7 +16,6 @@ import dailyReportRoutes from './routes/daily-reports.js';
 import managerReportRoutes from './routes/manager-reports.js';
 import analyticsRoutes from './routes/analytics.js';
 
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;

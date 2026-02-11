@@ -19,7 +19,7 @@ export const createUserTable = async () => {
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
-  
+
   // Migration: Add force_password_reset column if it doesn't exist
   try {
     await connection.query("ALTER TABLE user ADD COLUMN force_password_reset BOOLEAN DEFAULT TRUE");

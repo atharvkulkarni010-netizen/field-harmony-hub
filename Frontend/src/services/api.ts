@@ -45,7 +45,7 @@ export const authApi = {
   logout: () => api.post('/auth/logout'),
   updatePassword: (newPassword: string) => api.put('/auth/change-password', { newPassword }),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (email: string, otp: string, newPassword: string) => 
+  resetPassword: (email: string, otp: string, newPassword: string) =>
     api.post('/auth/reset-password', { email, otp, newPassword }),
   // refreshToken: () => api.post('/auth/refresh'), // Not implemented in backend yet
 };
@@ -88,19 +88,19 @@ export const attendanceApi = {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
     const check_in_time = now.toLocaleTimeString('en-US', { hour12: false });
-    return api.post('/attendance/check-in', { 
-      date, 
-      check_in_time, 
-      check_in_latitude: location.lat, 
-      check_in_longitude: location.lng 
+    return api.post('/attendance/check-in', {
+      date,
+      check_in_time,
+      check_in_latitude: location.lat,
+      check_in_longitude: location.lng
     });
   },
   checkOut: (attendanceId: string, location: { lat: number; lng: number }) => {
     const check_out_time = new Date().toLocaleTimeString('en-US', { hour12: false });
-    return api.patch(`/attendance/${attendanceId}/check-out`, { 
-      check_out_time, 
-      check_out_latitude: location.lat, 
-      check_out_longitude: location.lng 
+    return api.patch(`/attendance/${attendanceId}/check-out`, {
+      check_out_time,
+      check_out_latitude: location.lat,
+      check_out_longitude: location.lng
     });
   },
   getHistory: (userId: string) => api.get(`/attendance/user/${userId}`),
