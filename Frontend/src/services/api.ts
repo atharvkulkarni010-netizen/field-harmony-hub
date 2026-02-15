@@ -53,11 +53,17 @@ export const authApi = {
 export const usersApi = {
   getManagers: () => api.get('/users/managers'),
   getWorkers: () => api.get('/users/workers'),
-  register: (data: { name: string; email: string; role: 'ADMIN' | 'MANAGER' | 'WORKER'; manager_id?: string | null }) =>
+  register: (data: { name: string; email: string; role: 'ADMIN' | 'MANAGER' | 'WORKER'; manager_id?: string | null; skills?: string[] }) =>
     api.post('/users/register', data),
   deleteUser: (userId: string) => api.delete(`/users/${userId}`),
   getProfile: () => api.get('/users/profile'),
   getManagerWorkers: (managerId: string) => api.get(`/users/manager/${managerId}/workers`),
+  update: (id: string, data: any) => api.put(`/users/${id}`, data),
+};
+
+export const skillsApi = {
+  getAll: () => api.get('/skills'),
+  create: (name: string) => api.post('/skills', { name }),
 };
 
 export const projectsApi = {
@@ -66,6 +72,7 @@ export const projectsApi = {
   create: (data: any) => api.post('/projects', data),
   update: (id: string, data: any) => api.put(`/projects/${id}`, data),
   updateStatus: (id: string, status: string) => api.patch(`/projects/${id}/status`, { status }),
+  getDetails: (id: string) => api.get(`/projects/${id}`),
   // assign: (projectId: string, managerId: string) => api.put(`/projects/${projectId}`, { assigned_manager_id: managerId }), // Assignment handled via update
 };
 
@@ -77,6 +84,9 @@ export const tasksApi = {
   updateStatus: (id: string, status: string) => api.patch(`/tasks/${id}/status`, { status }),
   assignWorker: (taskId: string, workerId: string) =>
     api.post('/task-assignments', { task_id: taskId, worker_id: workerId }),
+  submit: (taskId: string) => api.post(`/tasks/${taskId}/submit`),
+  approve: (taskId: string) => api.post(`/tasks/${taskId}/approve`),
+  reject: (taskId: string, reason: string) => api.post(`/tasks/${taskId}/reject`, { reason }),
 };
 
 export const taskAssignmentsApi = {
@@ -125,6 +135,7 @@ export const reportsApi = {
     }),
   getTaskReports: (taskId: string) => api.get(`/daily-reports/task/${taskId}`),
   getMyReports: () => api.get('/daily-reports/worker/me'), // This endpoint needs adjustment in backend if 'me' is not handled, but usually handled by /worker/:id with user.id
+  getByWorker: (workerId: string) => api.get(`/daily-reports/worker/${workerId}`),
   getTeamReports: (date: string) => api.get('/daily-reports/manager/team-reports', { params: { date } }),
 };
 

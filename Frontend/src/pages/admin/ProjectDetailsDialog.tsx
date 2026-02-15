@@ -19,8 +19,7 @@ import {
     AlertCircle,
     FileText,
     Activity,
-    Lock,
-    Unlock
+
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { projectsApi } from '@/services/api';
@@ -48,7 +47,7 @@ export function ProjectDetailsDialog({ projectId, open, onOpenChange }: ProjectD
     const fetchDetails = async () => {
         try {
             setLoading(true);
-            const response = await projectsApi.getDetails(projectId!);
+            const response = await projectsApi.getDetails(String(projectId!));
             setData(response.data);
         } catch (error) {
             console.error('Error fetching project details:', error);
@@ -62,19 +61,7 @@ export function ProjectDetailsDialog({ projectId, open, onOpenChange }: ProjectD
         }
     };
 
-    const handleToggleLock = async () => {
-        try {
-            const response = await projectsApi.toggleLock(projectId!);
-            setData({ ...data, is_locked: response.data.project.is_locked });
-            toast({
-                title: response.data.project.is_locked ? "Project Locked" : "Project Unlocked",
-                description: response.data.message
-            });
-        } catch (error) {
-            console.error('Error toggling lock:', error);
-            toast({ title: 'Error', description: 'Failed to update lock status', variant: 'destructive' });
-        }
-    };
+
 
     if (!open) return null;
 
@@ -104,15 +91,11 @@ export function ProjectDetailsDialog({ projectId, open, onOpenChange }: ProjectD
                                     <Badge className={statusColors[data.status as keyof typeof statusColors]}>
                                         {data.status}
                                     </Badge>
-                                    {data.is_locked && <Badge variant="destructive" className="flex items-center gap-1"><Lock className="w-3 h-3" /> Locked</Badge>}
+
                                 </>
                             )}
                         </div>
-                        {!loading && data && (
-                            <Button variant={data.is_locked ? "outline" : "secondary"} size="sm" onClick={handleToggleLock}>
-                                {data.is_locked ? <><Unlock className="w-4 h-4 mr-2" /> Unlock Project</> : <><Lock className="w-4 h-4 mr-2" /> Lock Project</>}
-                            </Button>
-                        )}
+
                     </DialogTitle>
                 </DialogHeader>
 
@@ -259,7 +242,17 @@ export function ProjectDetailsDialog({ projectId, open, onOpenChange }: ProjectD
                                                     <div className="flex items-center justify-between">
                                                         <p className="text-sm font-medium">{log.action}</p>
                                                         <span className="text-xs text-muted-foreground">
-                                                            {new Date(log.timestamp).toLocaleDateString()} {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {new Intl.DateTimeFormat('en-IN', {
+                                                                    timeZone: 'Asia/Kolkata',
+                                                                    day: '2-digit',
+                                                                    month: 'short',
+                                                                    year: 'numeric',
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit',
+                                                                    hour12: true
+                                                                }).format(new Date(log.timestamp))}
+                                                            </span>
                                                         </span>
                                                     </div>
                                                     <p className="text-sm text-muted-foreground">{log.description}</p>

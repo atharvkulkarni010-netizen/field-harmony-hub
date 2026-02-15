@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, CheckCircle2, XCircle, Navigation, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { attendanceApi } from '@/services/api';
+import { getAddressFromCoordinates } from '@/services/geocoding';
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
 
@@ -28,6 +29,7 @@ export default function WorkerAttendance() {
   const [isLoading, setIsLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
+  const [historyAddresses, setHistoryAddresses] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   // Fetch initial state
@@ -36,30 +38,30 @@ export default function WorkerAttendance() {
       try {
         // Get today's attendance to see if checked in
         try {
-            const todayRes = await attendanceApi.getToday();
-            const todayRecord = todayRes.data;
-            
-            if (todayRecord) {
-              setAttendanceId(todayRecord.attendance_id);
-              if (!todayRecord.check_out_time) {
-                setIsCheckedIn(true);
-                setCheckInTime(new Date(`1970-01-01T${todayRecord.check_in_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-              } else {
-                 setIsCheckedIn(false); // Already checked out for today
-              }
+          const todayRes = await attendanceApi.getToday();
+          const todayRecord = todayRes.data;
+
+          if (todayRecord) {
+            setAttendanceId(todayRecord.attendance_id);
+            if (!todayRecord.check_out_time) {
+              setIsCheckedIn(true);
+              setCheckInTime(new Date(`1970-01-01T${todayRecord.check_in_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
             } else {
-                setIsCheckedIn(false);
+              setIsCheckedIn(false); // Already checked out for today
             }
+          } else {
+            setIsCheckedIn(false);
+          }
         } catch (error) {
-            console.error("Error fetching today's attendance", error);
+          console.error("Error fetching today's attendance", error);
         }
 
         // Get history
         if (user?.user_id) {
-            const historyRes = await attendanceApi.getHistory(user.user_id);
-            if (Array.isArray(historyRes.data)) {
-                 setHistory(historyRes.data);
-            }
+          const historyRes = await attendanceApi.getHistory(user.user_id);
+          if (Array.isArray(historyRes.data)) {
+            setHistory(historyRes.data);
+          }
         }
 
       } catch (error) {
@@ -79,7 +81,11 @@ export default function WorkerAttendance() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
-          setLocationName(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`);
+          // Fetch address
+          getAddressFromCoordinates(position.coords.latitude, position.coords.longitude)
+            .then(address => setLocationName(address))
+            .catch(() => setLocationName(`${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`));
+
           setLocationError(null);
         },
         (error) => {
@@ -88,9 +94,39 @@ export default function WorkerAttendance() {
         }
       );
     } else {
-        setLocationError('Geolocation is not supported by this browser.');
+      setLocationError('Geolocation is not supported by this browser.');
     }
   }, []);
+
+  // Fetch addresses for history
+  useEffect(() => {
+    const fetchHistoryAddresses = async () => {
+      const recordsWithCoords = history.filter(
+        // @ts-ignore - Backend might return these fields even if not in interface
+        record => (record.check_in_latitude || record.check_in_longitude) && !historyAddresses[record.attendance_id]
+      );
+
+      if (recordsWithCoords.length === 0) return;
+
+      for (const record of recordsWithCoords) {
+        // @ts-ignore
+        const lat = record.check_in_latitude;
+        // @ts-ignore
+        const lng = record.check_in_longitude;
+
+        if (!lat || !lng || historyAddresses[record.attendance_id]) continue;
+
+        const address = await getAddressFromCoordinates(Number(lat), Number(lng));
+        setHistoryAddresses(prev => ({ ...prev, [record.attendance_id]: address }));
+
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+    };
+
+    if (history.length > 0) {
+      fetchHistoryAddresses();
+    }
+  }, [history]);
 
   const handleCheckInOut = async () => {
     if (!currentLocation) {
@@ -108,10 +144,10 @@ export default function WorkerAttendance() {
       if (isCheckedIn) {
         // Check Out
         if (!attendanceId) {
-             throw new Error("Attendance ID missing for check-out");
+          throw new Error("Attendance ID missing for check-out");
         }
         await attendanceApi.checkOut(attendanceId, currentLocation);
-        
+
         setIsCheckedIn(false);
         setAttendanceId(null);
         toast({
@@ -122,7 +158,7 @@ export default function WorkerAttendance() {
         // Check In
         const response = await attendanceApi.checkIn(currentLocation);
         const newRecord = response.data.attendance;
-        
+
         setIsCheckedIn(true);
         setAttendanceId(newRecord.attendance_id);
         setCheckInTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -139,12 +175,12 @@ export default function WorkerAttendance() {
       }
 
     } catch (error: any) {
-        console.error('Check-in/out error:', error);
-        toast({
-            title: 'Error',
-            description: error.response?.data?.message || 'Failed to update attendance status',
-            variant: 'destructive'
-        });
+      console.error('Check-in/out error:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to update attendance status',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -163,11 +199,10 @@ export default function WorkerAttendance() {
           {/* Status Indicator */}
           <div className="relative">
             <div
-              className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all duration-500 ${
-                isCheckedIn
+              className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all duration-500 ${isCheckedIn
                   ? 'bg-secondary/20 ring-4 ring-secondary/30'
                   : 'bg-muted ring-4 ring-muted'
-              } ${isLoading ? 'pulse-ring' : ''}`}
+                } ${isLoading ? 'pulse-ring' : ''}`}
             >
               {isCheckedIn ? (
                 <CheckCircle2 className="w-16 h-16 text-secondary" />
@@ -193,7 +228,7 @@ export default function WorkerAttendance() {
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Navigation className="w-4 h-4" />
             {currentLocation ? (
-              <span className="text-sm">{locationName}</span>
+              <span className="text-sm text-center px-4">{locationName}</span>
             ) : (
               <span className="text-sm text-destructive">{locationError || 'Getting location...'}</span>
             )}
@@ -204,11 +239,10 @@ export default function WorkerAttendance() {
             onClick={handleCheckInOut}
             disabled={isLoading || !currentLocation}
             size="lg"
-            className={`w-full h-14 text-lg rounded-2xl font-semibold transition-all duration-300 ${
-              isCheckedIn
+            className={`w-full h-14 text-lg rounded-2xl font-semibold transition-all duration-300 ${isCheckedIn
                 ? 'gradient-earth text-primary-foreground'
                 : 'gradient-forest text-primary-foreground'
-            }`}
+              }`}
           >
             {isLoading ? (
               <div className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
@@ -256,41 +290,49 @@ export default function WorkerAttendance() {
         <CardContent>
           <div className="space-y-3">
             {history.length > 0 ? (
-                history.map((record, index) => (
-              <div
-                key={record.attendance_id || index}
-                className="flex items-center justify-between p-4 rounded-xl bg-muted/30 animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="space-y-1">
-                  <p className="font-medium">
-                    {new Date(record.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <MapPin className="w-3 h-3" />
-                    {/* Backend might not return location name, just coords. Displaying status instead or coords */}
-                    {record.status}
+              history.map((record, index) => (
+                <div
+                  key={record.attendance_id || index}
+                  className="flex items-center justify-between p-4 rounded-xl bg-muted/30 animate-fade-in"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium">
+                      {new Date(record.date).toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        {/* @ts-ignore */}
+                        {record.check_in_latitude ? (
+                          <span className="truncate max-w-[200px]" title={historyAddresses[record.attendance_id] || "Loading location..."}>
+                            {historyAddresses[record.attendance_id] || "Loading location..."}
+                          </span>
+                        ) : (
+                          <span>{record.status}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="text-sm">
+                      {record.check_in_time ? new Date(`1970-01-01T${record.check_in_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'} -
+                      {record.check_out_time ? new Date(`1970-01-01T${record.check_out_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Working'}
+                    </p>
+                    <Badge variant="outline" className={record.check_out_time ? "status-completed" : "status-active"}>
+                      {record.check_out_time ? 'Completed' : 'Active'}
+                    </Badge>
                   </div>
                 </div>
-                <div className="text-right space-y-1">
-                  <p className="text-sm">
-                    {record.check_in_time ? new Date(`1970-01-01T${record.check_in_time}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--'} - 
-                    {record.check_out_time ? new Date(`1970-01-01T${record.check_out_time}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Working'}
-                  </p>
-                  <Badge variant="outline" className={record.check_out_time ? "status-completed" : "status-active"}>
-                    {record.check_out_time ? 'Completed' : 'Active'}
-                  </Badge>
-                </div>
-              </div>
-            ))
+              ))
             ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                    No attendance history found.
-                </div>
+              <div className="text-center py-6 text-muted-foreground">
+                No attendance history found.
+              </div>
             )}
           </div>
         </CardContent>

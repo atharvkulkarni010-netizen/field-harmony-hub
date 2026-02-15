@@ -76,6 +76,17 @@ export const updateTaskStatus = async (task_id, status) => {
   }
 };
 
+export const updateTaskRejection = async (task_id, rejection_reason, status) => {
+  const connection = await pool.getConnection();
+  try {
+    const query = 'UPDATE task SET rejection_reason = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE task_id = ?';
+    await connection.query(query, [rejection_reason, status, task_id]);
+    return { task_id, rejection_reason, status };
+  } finally {
+    connection.release();
+  }
+};
+
 export const deleteTask = async (task_id) => {
   const connection = await pool.getConnection();
   try {
@@ -112,6 +123,19 @@ export const findTasksDueTodayByManager = async (manager_id) => {
     `;
     const [rows] = await connection.query(query, [manager_id, today]);
     return rows;
+  } finally {
+    connection.release();
+  }
+};
+
+export const isWorkerAssignedToTask = async (task_id, worker_id) => {
+  const connection = await pool.getConnection();
+  try {
+    const [rows] = await connection.query(
+      'SELECT * FROM task_assignment WHERE task_id = ? AND worker_id = ?',
+      [task_id, worker_id]
+    );
+    return rows.length > 0;
   } finally {
     connection.release();
   }

@@ -15,6 +15,7 @@ import leaveRoutes from './routes/leaves.js';
 import dailyReportRoutes from './routes/daily-reports.js';
 import managerReportRoutes from './routes/manager-reports.js';
 import analyticsRoutes from './routes/analytics.js';
+import skillsRoutes from './routes/skills.js';
 
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/api/daily-reports', dailyReportRoutes);
 app.use('/api/manager-reports', managerReportRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/skills', skillsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

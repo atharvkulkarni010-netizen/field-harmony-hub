@@ -1,14 +1,18 @@
 import express from 'express';
 import { verifyToken, authorize } from '../middleware/auth.js';
-import { 
-  createTask, 
-  getProjectTasks, 
-  getTaskById, 
-  updateTask, 
-  updateTaskStatus, 
-  getTaskWorkers, 
+import {
+  createTask,
+  getProjectTasks,
+  getTaskById,
+  updateTask,
+  updateTaskStatus,
+  getTaskWorkers,
   deleteTask,
-  getTasksDueToday
+
+  getTasksDueToday,
+  submitTask,
+  approveTask,
+  rejectTask
 } from '../controllers/taskController.js';
 
 const router = express.Router();
@@ -28,11 +32,16 @@ router.get('/:task_id', verifyToken, getTaskById);
 // Update task (Only project manager or ADMIN)
 router.put('/:task_id', verifyToken, authorize('ADMIN', 'MANAGER'), updateTask);
 
-// Update task status (Only project manager or ADMIN)
-router.patch('/:task_id/status', verifyToken, authorize('ADMIN', 'MANAGER'), updateTaskStatus);
+// Update task status (Project manager, ADMIN, or assigned WORKER)
+router.patch('/:task_id/status', verifyToken, authorize('ADMIN', 'MANAGER', 'WORKER'), updateTaskStatus);
 
 // Get workers assigned to a task
 router.get('/:task_id/workers', verifyToken, getTaskWorkers);
+
+// Trust & Verify Routes
+router.post('/:task_id/submit', verifyToken, authorize('WORKER', 'MANAGER'), submitTask);
+router.post('/:task_id/approve', verifyToken, authorize('MANAGER', 'ADMIN'), approveTask);
+router.post('/:task_id/reject', verifyToken, authorize('MANAGER', 'ADMIN'), rejectTask);
 
 // Delete task (ADMIN only)
 router.delete('/:task_id', verifyToken, authorize('ADMIN'), deleteTask);

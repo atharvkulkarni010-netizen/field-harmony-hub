@@ -47,7 +47,7 @@ export const registerUser = async (req, res) => {
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
     // Create User with Verification Token (is_verified = false)
-    const user = await userService.createUserWithVerification(name, email, randomPassword, role, verificationToken, manager_id);
+    const user = await userService.createUserWithVerification(name, email, randomPassword, role, verificationToken, manager_id, req.body.skills);
 
     // Send welcome email with credentials AND verification link
     await sendWelcomeEmail(email, name, randomPassword, role, verificationToken);
@@ -61,7 +61,8 @@ export const registerUser = async (req, res) => {
         email: user.email,
         role: user.role,
         manager_id: user.manager_id,
-        created_at: user.created_at
+        created_at: user.created_at,
+        skills: user.skills
       },
       generatedPassword: randomPassword
     });
@@ -144,8 +145,8 @@ export const updateUser = async (req, res) => {
       return res.status(403).json({ message: 'You can only update your own profile' });
     }
 
-    const { name, email, role, manager_id } = req.body;
-    const updatedUser = await userService.updateUser(user_id, { name, email, role, manager_id });
+    const { name, email, role, manager_id, skills } = req.body;
+    const updatedUser = await userService.updateUser(user_id, { name, email, role, manager_id, skills });
     res.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error) {
     console.error(error);
