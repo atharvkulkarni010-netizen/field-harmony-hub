@@ -157,6 +157,7 @@ export const analyticsApi = {
   getManagerStats: () => api.get('/analytics/manager-stats'),
   getKeyMetrics: () => api.get('/analytics/key-metrics'),
   getWeeklyProgress: () => api.get('/analytics/weekly-progress'),
+  getPublicStats: () => api.get('/analytics/public-stats'), // Public endpoint
 };
 
 export default api;

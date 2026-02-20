@@ -105,6 +105,35 @@ export function ProjectDetailsDialog({ projectId, open, onOpenChange }: ProjectD
                     </div>
                 ) : data ? (
                     <div className="space-y-6 mt-4">
+                        {/* Actions for Yet to start projects */}
+                        {data.status === 'Yet to start' && (
+                            <div className="flex justify-end">
+                                <Button
+                                    onClick={async () => {
+                                        try {
+                                            setLoading(true);
+                                            await projectsApi.updateStatus(String(projectId!), 'Ongoing');
+                                            toast({
+                                                title: "Project Started",
+                                                description: `${data.name} is now Ongoing.`,
+                                            });
+                                            fetchDetails(); // Refresh details
+                                        } catch (error) {
+                                            console.error("Failed to start project:", error);
+                                            toast({
+                                                title: "Error",
+                                                description: "Failed to update project status.",
+                                                variant: "destructive"
+                                            });
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    className="gradient-forest text-primary-foreground"
+                                >
+                                    Start Project
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Overview & Metadata */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -272,6 +301,6 @@ export function ProjectDetailsDialog({ projectId, open, onOpenChange }: ProjectD
                     <div className="text-center text-muted-foreground py-12">Failed to load details.</div>
                 )}
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

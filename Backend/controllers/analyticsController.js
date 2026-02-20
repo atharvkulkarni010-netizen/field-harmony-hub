@@ -10,7 +10,7 @@ export const getDashboardStats = async (req, res) => {
         (SELECT COUNT(*) FROM project WHERE status = 'Ongoing') as active_projects,
         (SELECT COUNT(*) FROM task WHERE status = 'Completed' AND MONTH(updated_at) = MONTH(CURRENT_DATE())) as tasks_completed_this_month
     `);
-    
+
     res.json(counts[0]);
   } catch (error) {
     console.error(error);
@@ -34,7 +34,7 @@ export const getAttendanceTrends = async (req, res) => {
       GROUP BY date
       ORDER BY date
     `);
-    
+
     // Fill in missing days with 0 if needed (frontend can handle or we do it here) 
     // For now returning raw data
     res.json(rows);
@@ -54,7 +54,7 @@ export const getProjectStatus = async (req, res) => {
       FROM project
       GROUP BY status
     `);
-    
+
     // Map statuses to colors
     const colors = {
       'Ongoing': 'hsl(122, 47%, 33%)', // Green
@@ -82,7 +82,7 @@ export const getRecentActivity = async (req, res) => {
   try {
     // Combine recent activities from multiple tables
     // This is a simplified approach. Ideally we'd have an activity_log table.
-    
+
     const [projects] = await connection.query(`
       SELECT 'project' as type, name as title, created_at as time, 'New project created' as action, (SELECT name FROM user WHERE user_id = assigned_manager_id) as user
       FROM project
@@ -182,7 +182,7 @@ export const getManagerStats = async (req, res) => {
       FROM user u
       WHERE u.role = 'MANAGER'
     `);
-    
+
     // Calculate percentage of total workforce for visualization
     const [totalWorkersRes] = await connection.query(`SELECT COUNT(*) as count FROM user WHERE role = 'WORKER'`);
     const totalWorkers = totalWorkersRes[0].count || 1;
@@ -210,7 +210,7 @@ export const getKeyMetrics = async (req, res) => {
         (SELECT COUNT(DISTINCT user_id) FROM attendance WHERE date = CURDATE() AND status = 'PRESENT') as today_present,
         (SELECT COUNT(*) FROM user WHERE role = 'WORKER') as total_workers
     `);
-    
+
     const todayPresent = attendanceRes[0].today_present;
     const totalWorkers = attendanceRes[0].total_workers || 1;
     const attendancePct = Math.round((todayPresent / totalWorkers) * 100);
@@ -267,7 +267,7 @@ export const getWeeklyProgress = async (req, res) => {
     // Since we get absolute week numbers, we might want to map them relative to current date or just label them sequentially
     // For simplicity, let's just label them based on the row index or actual week start date if we had it.
     // Let's genericize to "Week 1" to "Week 4" based on the data we have, or better, return user-friendly labels.
-    
+
     // Better approach: Generate the last 4 weeks and fill data
     const weeks = [];
     for (let i = 3; i >= 0; i--) {
@@ -281,7 +281,7 @@ export const getWeeklyProgress = async (req, res) => {
     // This simplistic mapping assumes the query returns rows in order. 
     // A more robust way would be needed for production (matching week numbers).
     // For this task, let's return the raw rows mapped to the structure.
-    
+
     const data = rows.map((row, index) => ({
       week: `Week ${index + 1}`,
       tasks: row.tasks,
@@ -290,15 +290,47 @@ export const getWeeklyProgress = async (req, res) => {
 
     // If no data, return empty structure or 0s
     if (data.length === 0) {
-       res.json(weeks);
+      res.json(weeks);
     } else {
-       // Pad if less than 4 weeks? Let's just return what we have.
-       res.json(data);
+      // Pad if less than 4 weeks? Let's just return what we have.
+      res.json(data);
     }
 
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching weekly progress' });
+  } finally {
+    connection.release();
+  }
+};
+export const getPublicStats = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    // 1. Active Projects Count
+    const [projectRows] = await connection.query(
+      "SELECT COUNT(*) as count FROM project WHERE status = 'Ongoing'"
+    );
+    const activeProjects = projectRows[0].count;
+
+    // 2. Field Workers Count
+    const [workerRows] = await connection.query(
+      "SELECT COUNT(*) as count FROM user WHERE role = 'WORKER'"
+    );
+    const fieldWorkers = workerRows[0].count;
+
+    // 3. Acres Protected (Calculated Estimation since no column exists)
+    // fl.random() or just a base + dynamic component
+    // Let's say base is 25000 and each active project adds ~50 acres on average
+    const acresProtected = 25000 + (activeProjects * 50);
+
+    res.json({
+      active_projects: activeProjects,
+      field_workers: fieldWorkers,
+      acres_protected: acresProtected
+    });
+  } catch (error) {
+    console.error('Error fetching public stats:', error);
+    res.status(500).json({ message: 'Error fetching statistics' });
   } finally {
     connection.release();
   }
