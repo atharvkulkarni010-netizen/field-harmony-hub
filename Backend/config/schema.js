@@ -71,8 +71,26 @@ export const createProjectTable = async () => {
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
+
+  // Migration: Add geo-fence columns if they don't exist
+  const geofenceCols = [
+    { name: 'geofence_latitude', def: 'DECIMAL(10, 8) DEFAULT NULL' },
+    { name: 'geofence_longitude', def: 'DECIMAL(11, 8) DEFAULT NULL' },
+    { name: 'geofence_radius', def: 'INT DEFAULT 500' },
+  ];
+  for (const col of geofenceCols) {
+    try {
+      await connection.query(`ALTER TABLE project ADD COLUMN ${col.name} ${col.def}`);
+      console.log(`Added ${col.name} column to project table`);
+    } catch (error) {
+      if (error.code !== 'ER_DUP_FIELDNAME') {
+        console.error(`Error adding ${col.name} column:`, error);
+      }
+    }
+  }
+
   connection.release();
-  console.log('Project table created');
+  console.log('Project table created/updated');
 };
 
 // Create Task table
@@ -146,8 +164,19 @@ export const createAttendanceTable = async () => {
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
+
+  // Migration: Add geofence_status column if it doesn't exist
+  try {
+    await connection.query("ALTER TABLE attendance ADD COLUMN geofence_status VARCHAR(10) DEFAULT NULL");
+    console.log("Added geofence_status column to attendance table");
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      // ignore
+    }
+  }
+
   connection.release();
-  console.log('Attendance table created');
+  console.log('Attendance table created/updated');
 };
 
 // Create Leave table

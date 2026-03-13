@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, CheckCircle2, XCircle, Navigation, AlertCircle } from 'lucide-react';
+import { MapPin, Clock, CheckCircle2, XCircle, Navigation, AlertCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { attendanceApi } from '@/services/api';
 import { getAddressFromCoordinates } from '@/services/geocoding';
@@ -30,6 +30,7 @@ export default function WorkerAttendance() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [history, setHistory] = useState<AttendanceRecord[]>([]);
   const [historyAddresses, setHistoryAddresses] = useState<Record<string, string>>({});
+  const [geofenceInfo, setGeofenceInfo] = useState<{ status: string | null; nearest_project: string | null; distance: number | null } | null>(null);
   const { toast } = useToast();
 
   // Fetch initial state
@@ -43,6 +44,9 @@ export default function WorkerAttendance() {
 
           if (todayRecord) {
             setAttendanceId(todayRecord.attendance_id);
+            if (todayRecord.geofence_status) {
+              setGeofenceInfo({ status: todayRecord.geofence_status, nearest_project: null, distance: null });
+            }
             if (!todayRecord.check_out_time) {
               setIsCheckedIn(true);
               setCheckInTime(new Date(`1970-01-01T${todayRecord.check_in_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -158,13 +162,20 @@ export default function WorkerAttendance() {
         // Check In
         const response = await attendanceApi.checkIn(currentLocation);
         const newRecord = response.data.attendance;
+        const geofence = response.data.geofence;
 
         setIsCheckedIn(true);
         setAttendanceId(newRecord.attendance_id);
         setCheckInTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+        if (geofence && geofence.status) {
+          setGeofenceInfo(geofence);
+        }
+
         toast({
           title: 'Checked In Successfully',
-          description: `You have checked in at ${locationName}.`,
+          description: `You have checked in at ${locationName}.${geofence?.status === 'OUTSIDE' ? ' ⚠️ You are outside the project geo-fence.' : ''}`,
+          variant: geofence?.status === 'OUTSIDE' ? 'destructive' : 'default',
         });
       }
 
@@ -200,8 +211,8 @@ export default function WorkerAttendance() {
           <div className="relative">
             <div
               className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center transition-all duration-500 ${isCheckedIn
-                  ? 'bg-secondary/20 ring-4 ring-secondary/30'
-                  : 'bg-muted ring-4 ring-muted'
+                ? 'bg-secondary/20 ring-4 ring-secondary/30'
+                : 'bg-muted ring-4 ring-muted'
                 } ${isLoading ? 'pulse-ring' : ''}`}
             >
               {isCheckedIn ? (
@@ -222,6 +233,21 @@ export default function WorkerAttendance() {
                 Since {checkInTime}
               </p>
             )}
+            {isCheckedIn && geofenceInfo && geofenceInfo.status && (
+              <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${geofenceInfo.status === 'INSIDE'
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                }`}>
+                {geofenceInfo.status === 'INSIDE' ? (
+                  <><ShieldCheck className="w-3.5 h-3.5" /> Inside Zone</>
+                ) : (
+                  <><ShieldAlert className="w-3.5 h-3.5" /> Outside Zone</>
+                )}
+                {geofenceInfo.distance != null && (
+                  <span className="ml-1 opacity-75">({geofenceInfo.distance}m away)</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Location */}
@@ -240,8 +266,8 @@ export default function WorkerAttendance() {
             disabled={isLoading || !currentLocation}
             size="lg"
             className={`w-full h-14 text-lg rounded-2xl font-semibold transition-all duration-300 ${isCheckedIn
-                ? 'gradient-earth text-primary-foreground'
-                : 'gradient-forest text-primary-foreground'
+              ? 'gradient-earth text-primary-foreground'
+              : 'gradient-forest text-primary-foreground'
               }`}
           >
             {isLoading ? (

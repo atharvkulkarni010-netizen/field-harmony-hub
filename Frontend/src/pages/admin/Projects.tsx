@@ -44,6 +44,9 @@ interface Project {
   location?: string;
   google_maps_link?: string;
   location_type?: 'On-site' | 'Remote' | 'Hybrid';
+  geofence_latitude?: number | string;
+  geofence_longitude?: number | string;
+  geofence_radius?: number | string;
   progress?: number;
   tasks?: { total: number; completed: number };
   workers?: number;
@@ -82,7 +85,10 @@ export default function Projects() {
     end_date: '',
     location: '',
     google_maps_link: '',
-    location_type: 'On-site'
+    location_type: 'On-site',
+    geofence_latitude: '',
+    geofence_longitude: '',
+    geofence_radius: 500
   });
 
   // State for details dialog
@@ -170,7 +176,10 @@ export default function Projects() {
         assigned_manager_id: typeof newProject.assigned_manager_id === 'string' ? parseInt(newProject.assigned_manager_id) : newProject.assigned_manager_id,
         location: newProject.location,
         google_maps_link: newProject.google_maps_link,
-        location_type: newProject.location_type
+        location_type: newProject.location_type,
+        geofence_latitude: newProject.geofence_latitude ? Number(newProject.geofence_latitude) : null,
+        geofence_longitude: newProject.geofence_longitude ? Number(newProject.geofence_longitude) : null,
+        geofence_radius: newProject.geofence_radius ? Number(newProject.geofence_radius) : 500
       };
 
       await projectsApi.create(projectData);
@@ -180,7 +189,8 @@ export default function Projects() {
 
       setNewProject({
         name: '', description: '', assigned_manager_id: '' as any, start_date: '', end_date: '',
-        location: '', google_maps_link: '', location_type: 'On-site'
+        location: '', google_maps_link: '', location_type: 'On-site',
+        geofence_latitude: '', geofence_longitude: '', geofence_radius: 500
       });
       setIsDialogOpen(false);
       toast({
@@ -211,15 +221,15 @@ export default function Projects() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">Create New Project</DialogTitle>
               <DialogDescription>
                 Set up a new conservation project and assign a manager.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
-              <div className="space-y-2">
+            <form onSubmit={handleCreateProject} className="space-y-3 mt-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="name">Project Name</Label>
                 <Input
                   id="name"
@@ -230,29 +240,47 @@ export default function Projects() {
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   value={newProject.description}
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                   placeholder="Describe the project goals and scope"
-                  className="rounded-xl min-h-[80px]"
+                  className="rounded-xl min-h-[60px]"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location">Location / Site Name</Label>
-                <Input
-                  id="location"
-                  value={newProject.location || ''}
-                  onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
-                  placeholder="e.g., Riverside Park, Zone B"
-                  className="rounded-xl"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="location">Location / Site Name</Label>
+                  <Input
+                    id="location"
+                    value={newProject.location || ''}
+                    onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
+                    placeholder="e.g., Riverside Park"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="location_type">Location Type</Label>
+                  <Select
+                    value={newProject.location_type || 'On-site'}
+                    onValueChange={(value: 'On-site' | 'Remote' | 'Hybrid') => setNewProject({ ...newProject, location_type: value })}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="On-site">On-site</SelectItem>
+                      <SelectItem value="Remote">Remote</SelectItem>
+                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="google_maps_link">Google Maps Link (Optional)</Label>
                 <Input
                   id="google_maps_link"
@@ -263,23 +291,54 @@ export default function Projects() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="location_type">Location Type</Label>
-                <Select
-                  value={newProject.location_type || 'On-site'}
-                  onValueChange={(value: 'On-site' | 'Remote' | 'Hybrid') => setNewProject({ ...newProject, location_type: value })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select location type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="On-site">On-site</SelectItem>
-                    <SelectItem value="Remote">Remote</SelectItem>
-                    <SelectItem value="Hybrid">Hybrid</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Geo-Fence Settings — compact */}
+              <div className="space-y-2 p-2.5 rounded-xl bg-muted/30 border border-dashed border-border">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-primary" />
+                  Geo-Fence Settings
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="geofence_lat" className="text-xs">Latitude</Label>
+                    <Input
+                      id="geofence_lat"
+                      type="number"
+                      step="any"
+                      value={newProject.geofence_latitude ?? ''}
+                      onChange={(e) => setNewProject({ ...newProject, geofence_latitude: e.target.value })}
+                      placeholder="18.5204"
+                      className="rounded-xl h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="geofence_lng" className="text-xs">Longitude</Label>
+                    <Input
+                      id="geofence_lng"
+                      type="number"
+                      step="any"
+                      value={newProject.geofence_longitude ?? ''}
+                      onChange={(e) => setNewProject({ ...newProject, geofence_longitude: e.target.value })}
+                      placeholder="73.8567"
+                      className="rounded-xl h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="geofence_radius" className="text-xs">Radius (m)</Label>
+                    <Input
+                      id="geofence_radius"
+                      type="number"
+                      min="50"
+                      max="10000"
+                      value={newProject.geofence_radius ?? 500}
+                      onChange={(e) => setNewProject({ ...newProject, geofence_radius: e.target.value })}
+                      placeholder="500"
+                      className="rounded-xl h-8 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
+
+              <div className="space-y-1.5">
                 <Label htmlFor="manager">Assign Manager</Label>
                 <Select
                   value={newProject.assigned_manager_id ? newProject.assigned_manager_id.toString() : ''}
@@ -297,8 +356,8 @@ export default function Projects() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="startDate">Start Date</Label>
                   <Input
                     id="startDate"
@@ -308,7 +367,7 @@ export default function Projects() {
                     className="rounded-xl"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="endDate">End Date</Label>
                   <Input
                     id="endDate"
@@ -319,7 +378,7 @@ export default function Projects() {
                   />
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-3">
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>

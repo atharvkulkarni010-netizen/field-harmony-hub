@@ -204,16 +204,20 @@ export const getManagerStats = async (req, res) => {
 export const getKeyMetrics = async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    // 1. Avg Attendance (Today vs Yesterday) - Simplified to just today
+    // 1. Avg Attendance — today and yesterday
     const [attendanceRes] = await connection.query(`
       SELECT 
         (SELECT COUNT(DISTINCT user_id) FROM attendance WHERE date = CURDATE() AND status = 'PRESENT') as today_present,
+        (SELECT COUNT(DISTINCT user_id) FROM attendance WHERE date = DATE_SUB(CURDATE(), INTERVAL 1 DAY) AND status = 'PRESENT') as yesterday_present,
         (SELECT COUNT(*) FROM user WHERE role = 'WORKER') as total_workers
     `);
 
     const todayPresent = attendanceRes[0].today_present;
+    const yesterdayPresent = attendanceRes[0].yesterday_present;
     const totalWorkers = attendanceRes[0].total_workers || 1;
     const attendancePct = Math.round((todayPresent / totalWorkers) * 100);
+    const yesterdayPct = Math.round((yesterdayPresent / totalWorkers) * 100);
+    const attendanceChange = attendancePct - yesterdayPct;
 
     // 2. Tasks This Month
     const [tasksRes] = await connection.query(`
@@ -221,8 +225,8 @@ export const getKeyMetrics = async (req, res) => {
       WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())
     `);
 
-    // 3. Active Workers (Currently Checked In - assuming no check out yet today or status is PRESENT)
-    // Using today_present from above is a good proxy
+    // 3. Active Workers (Currently Checked In)
+    // Using today_present from above as a proxy
 
     // 4. Projects on Track (Status = Ongoing)
     const [projectsRes] = await connection.query(`
@@ -236,6 +240,7 @@ export const getKeyMetrics = async (req, res) => {
 
     res.json({
       avg_attendance: `${attendancePct}%`,
+      attendance_change: attendanceChange,
       tasks_this_month: tasksRes[0].count,
       active_workers: todayPresent,
       projects_on_track: `${projectsPct}%`

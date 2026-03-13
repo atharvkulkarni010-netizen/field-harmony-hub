@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { attendanceApi } from '@/services/api';
 import { getAddressFromCoordinates } from '@/services/geocoding';
-import { Calendar, Clock, MapPin, User, Search, Filter } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Search, Filter, ShieldCheck, ShieldAlert } from 'lucide-react';
 import {
     Table,
     TableBody,
@@ -155,6 +155,7 @@ export default function ManagerAttendance() {
                                         <TableHead>Status</TableHead>
                                         <TableHead>Check In</TableHead>
                                         <TableHead>Check Out</TableHead>
+                                        <TableHead>Geo-fence</TableHead>
                                         <TableHead>Location</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -191,6 +192,22 @@ export default function ManagerAttendance() {
                                                         {record.check_out_time}
                                                     </div>
                                                 ) : <span className="text-muted-foreground">-</span>}
+                                            </TableCell>
+                                            <TableCell>
+                                                {record.geofence_status ? (
+                                                    <Badge className={`text-xs ${record.geofence_status === 'INSIDE'
+                                                            ? 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400'
+                                                            : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400'
+                                                        }`}>
+                                                        {record.geofence_status === 'INSIDE' ? (
+                                                            <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Inside</span>
+                                                        ) : (
+                                                            <span className="flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Outside</span>
+                                                        )}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">-</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="max-w-[200px]">
                                                 {record.check_in_latitude ? (
