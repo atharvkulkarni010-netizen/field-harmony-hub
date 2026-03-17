@@ -35,7 +35,7 @@ const navItems: NavItem[] = [
   { label: 'Workers', path: '/admin/workers', icon: UserPlus, roles: ['admin'] },
   { label: 'Projects', path: '/admin/projects', icon: FolderKanban, roles: ['admin'] },
   { label: 'Analytics', path: '/admin/analytics', icon: BarChart3, roles: ['admin'] },
-  
+
   // Manager items
   { label: 'Dashboard', path: '/manager', icon: LayoutDashboard, roles: ['manager'] },
   { label: 'Projects', path: '/manager/projects', icon: FolderKanban, roles: ['manager'] },
@@ -43,7 +43,7 @@ const navItems: NavItem[] = [
   { label: 'Attendance', path: '/manager/attendance', icon: Clock, roles: ['manager'] },
   { label: 'Reports', path: '/manager/reports', icon: FileText, roles: ['manager'] },
   { label: 'Leave Requests', path: '/manager/leave', icon: Calendar, roles: ['manager'] },
-  
+
   // Worker items
   { label: 'Dashboard', path: '/worker', icon: LayoutDashboard, roles: ['worker'] },
   { label: 'Check In/Out', path: '/worker/attendance', icon: MapPin, roles: ['worker'] },
@@ -103,21 +103,21 @@ export function Sidebar() {
 
       {/* User section */}
       <div className="p-4 border-t border-sidebar-border">
-          <Link to="/profile" className="flex items-center gap-3 mb-4 hover:bg-sidebar-accent/50 p-2 -m-2 rounded-lg transition-colors">
-            <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center">
-              <span className="text-sm font-semibold text-sidebar-foreground">
-                {user.name.charAt(0)}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {user.name}
-              </p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">
-                {user.email}
-              </p>
-            </div>
-          </Link>
+        <Link to="/profile" className="flex items-center gap-3 mb-4 hover:bg-sidebar-accent/50 p-2 -m-2 rounded-lg transition-colors">
+          <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center">
+            <span className="text-sm font-semibold text-sidebar-foreground">
+              {user.name.charAt(0)}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {user.name}
+            </p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">
+              {user.email}
+            </p>
+          </div>
+        </Link>
         <Button
           variant="ghost"
           className="w-full justify-start text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"

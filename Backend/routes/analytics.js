@@ -4,6 +4,9 @@ import { verifyToken, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Public routes
+router.get('/public-stats', analyticsController.getPublicStats);
+
 // All analytics routes should be protected
 // All analytics routes should be protected and restricted to Admin/Manager
 router.use(verifyToken, authorize('ADMIN', 'MANAGER'));

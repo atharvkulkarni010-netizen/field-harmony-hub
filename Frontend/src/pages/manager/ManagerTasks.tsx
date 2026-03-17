@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Calendar, MapPin, User } from 'lucide-react';
+import { Plus, Search, Calendar, MapPin, User, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { projectsApi, usersApi, tasksApi, taskAssignmentsApi } from '@/services/api';
 
@@ -35,9 +35,9 @@ const statusConfig = {
 
 // Map frontend status to backend status
 const reverseStatusMap: Record<string, string> = {
-    'pending': 'Yet to start',
-    'in-progress': 'Ongoing',
-    'completed': 'Completed'
+  'pending': 'Yet to start',
+  'in-progress': 'Ongoing',
+  'completed': 'Completed'
 };
 
 const priorityConfig = {
@@ -47,15 +47,15 @@ const priorityConfig = {
 };
 
 interface Task {
-    task_id: number;
-    title: string;
-    description: string;
-    project_id: number;
-    status: string;
-    due_date: string;
-    project_name?: string;
-    assignee_name?: string;
-    assignee_id?: number;
+  task_id: number;
+  title: string;
+  description: string;
+  project_id: number;
+  status: string;
+  due_date: string;
+  project_name?: string;
+  assignee_name?: string;
+  assignee_id?: number;
 }
 
 export default function ManagerTasks() {
@@ -74,12 +74,15 @@ export default function ManagerTasks() {
     due_date: '',
     location: '', // Backend doesn't have location yet
   });
+  const [rejectReason, setRejectReason] = useState('');
+  const [taskToReject, setTaskToReject] = useState<number | null>(null);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // 1. Get Profile to get Manager ID
       const profileRes = await usersApi.getProfile();
       const managerId = profileRes.data.user_id;
@@ -95,18 +98,18 @@ export default function ManagerTasks() {
       // 4. Fetch Tasks for all projects
       let allTasks: Task[] = [];
       for (const project of projectsRes.data) {
-          try {
-              const tasksRes = await tasksApi.getByProject(project.project_id);
-              // Enrich tasks with project name
-              const projectTasks = tasksRes.data.map((t: any) => ({
-                  ...t,
-                  project_name: project.name,
-                  // Fetch assignee? We need to fetch assignments per task
-              }));
-              allTasks = [...allTasks, ...projectTasks];
-          } catch (err) {
-              console.error(`Failed to fetch tasks for project ${project.project_id}`, err);
-          }
+        try {
+          const tasksRes = await tasksApi.getByProject(project.project_id);
+          // Enrich tasks with project name
+          const projectTasks = tasksRes.data.map((t: any) => ({
+            ...t,
+            project_name: project.name,
+            // Fetch assignee? We need to fetch assignments per task
+          }));
+          allTasks = [...allTasks, ...projectTasks];
+        } catch (err) {
+          console.error(`Failed to fetch tasks for project ${project.project_id}`, err);
+        }
       }
 
       // 5. Fetch Assignments for tasks (optimized to batch or just fetch when needed? 
@@ -115,21 +118,21 @@ export default function ManagerTasks() {
       // Better: Backend should probably return assignee in getProjectTasks or we fetch separately.
       // Given constraints, I'll fetch assignments for the tasks.
       const enrichedTasks = await Promise.all(allTasks.map(async (task) => {
-          try {
-             // We can't easily get assignee without a specific endpoint or n+1 calls
-             // For MVP, we'll try to get task workers if possible, or skip assignee name for now
-             // Actually, let's try to get assignments.
-             // But the user wants "assign to multiple". 
-             // We'll skip displaying assignee name in the list for now if it's too expensive,
-             // OR we do the n+1 calls since task list won't be huge.
-             const assignmentsRes = await taskAssignmentsApi.getMyAssignments(); // Wait, this gets *MY* assignments (as a worker). 
-             // We need to get workers assigned to a task. `tasksApi.getWorkers(taskId)`?
-             // Checking routes... `router.get('/:task_id/workers', ...)` exists!
-             // `tasksApi.getWorkers` not in api.ts? I checked, it's not. I'll add it later or use direct axios if needed.
-             // Actually I'll skip fetching assignees for the main list to speed up loading, 
-             // OR I can add `getWorkers` to api.ts.
-             return task;
-          } catch (e) { return task; }
+        try {
+          // We can't easily get assignee without a specific endpoint or n+1 calls
+          // For MVP, we'll try to get task workers if possible, or skip assignee name for now
+          // Actually, let's try to get assignments.
+          // But the user wants "assign to multiple". 
+          // We'll skip displaying assignee name in the list for now if it's too expensive,
+          // OR we do the n+1 calls since task list won't be huge.
+          const assignmentsRes = await taskAssignmentsApi.getMyAssignments(); // Wait, this gets *MY* assignments (as a worker). 
+          // We need to get workers assigned to a task. `tasksApi.getWorkers(taskId)`?
+          // Checking routes... `router.get('/:task_id/workers', ...)` exists!
+          // `tasksApi.getWorkers` not in api.ts? I checked, it's not. I'll add it later or use direct axios if needed.
+          // Actually I'll skip fetching assignees for the main list to speed up loading, 
+          // OR I can add `getWorkers` to api.ts.
+          return task;
+        } catch (e) { return task; }
       }));
 
       setTasks(enrichedTasks);
@@ -149,56 +152,87 @@ export default function ManagerTasks() {
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-        // 1. Create Task
-        const taskRes = await tasksApi.create(newTask.project_id, {
-            title: newTask.title,
-            description: newTask.description,
-            start_date: new Date().toISOString().split('T')[0], // Default to today
-            due_date: newTask.due_date
-        });
-        const createdTask = taskRes.data.task;
+      // 1. Create Task
+      const taskRes = await tasksApi.create(newTask.project_id, {
+        title: newTask.title,
+        description: newTask.description,
+        start_date: new Date().toISOString().split('T')[0], // Default to today
+        due_date: newTask.due_date
+      });
+      const createdTask = taskRes.data.task;
 
-        // 2. Assign Worker (if selected)
-        if (newTask.assignee_id) {
-            await tasksApi.assignWorker(createdTask.task_id.toString(), newTask.assignee_id);
-        }
+      // 2. Assign Worker (if selected)
+      if (newTask.assignee_id) {
+        await tasksApi.assignWorker(createdTask.task_id.toString(), newTask.assignee_id);
+      }
 
-        toast({
-            title: 'Task Created',
-            description: `${newTask.title} created successfully.`,
-        });
+      toast({
+        title: 'Task Created',
+        description: `${newTask.title} created successfully.`,
+      });
 
-        setIsDialogOpen(false);
-        setNewTask({ title: '', description: '', project_id: '', assignee_id: '', priority: 'medium', due_date: '', location: '' });
-        fetchData(); // Refresh list
+      setIsDialogOpen(false);
+      setNewTask({ title: '', description: '', project_id: '', assignee_id: '', priority: 'medium', due_date: '', location: '' });
+      fetchData(); // Refresh list
 
     } catch (error: any) {
-        console.error(error);
-        toast({
-            title: 'Error',
-            description: error.response?.data?.message || 'Failed to create task',
-            variant: 'destructive'
-        });
+      console.error(error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to create task',
+        variant: 'destructive'
+      });
     }
   };
 
   const updateTaskStatus = async (taskId: number, newStatus: string) => {
     try {
-        const backendStatus = reverseStatusMap[newStatus];
-        if (!backendStatus) return; // Should not happen
+      const backendStatus = reverseStatusMap[newStatus];
+      if (!backendStatus) return; // Should not happen
 
-        await tasksApi.updateStatus(taskId.toString(), backendStatus);
-        
-        // Optimistic update
-        setTasks(tasks.map(t => t.task_id === taskId ? { ...t, status: backendStatus } : t));
-        
-        toast({
-            title: 'Task Updated',
-            description: `Task status updated.`,
-        });
+      await tasksApi.updateStatus(taskId.toString(), backendStatus);
+
+      // Optimistic update
+      setTasks(tasks.map(t => t.task_id === taskId ? { ...t, status: backendStatus } : t));
+
+      toast({
+        title: 'Task Updated',
+        description: `Task status updated.`,
+      });
     } catch (error) {
-        toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
     }
+  };
+
+  const handleApprove = async (taskId: number) => {
+    try {
+      await tasksApi.approve(taskId.toString());
+      setTasks(tasks.map(t => t.task_id === taskId ? { ...t, status: 'Completed', rejection_reason: null } : t));
+      toast({ title: 'Task Approved', description: 'Task marked as completed.' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to approve task', variant: 'destructive' });
+    }
+  };
+
+  const handleReject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskToReject || !rejectReason) return;
+
+    try {
+      await tasksApi.reject(taskToReject.toString(), rejectReason);
+      setTasks(tasks.map(t => t.task_id === taskToReject ? { ...t, status: 'Ongoing', rejection_reason: rejectReason } : t));
+      toast({ title: 'Task Rejected', description: 'Task sent back for revision.' });
+      setIsRejectDialogOpen(false);
+      setRejectReason('');
+      setTaskToReject(null);
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to reject task', variant: 'destructive' });
+    }
+  };
+
+  const openRejectDialog = (taskId: number) => {
+    setTaskToReject(taskId);
+    setIsRejectDialogOpen(true);
   };
 
   const filteredTasks = tasks.filter(
@@ -206,13 +240,13 @@ export default function ManagerTasks() {
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (t.project_name && t.project_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  
+
   // Helper to map backend status to frontend tab keys
   const getTabStatus = (status: string) => {
-      if (status === 'Yet to start') return 'pending';
-      if (status === 'Ongoing' || status === 'In Review') return 'in-progress';
-      if (status === 'Completed') return 'completed';
-      return 'pending';
+    if (status === 'Yet to start') return 'pending';
+    if (status === 'Ongoing' || status === 'In Review') return 'in-progress';
+    if (status === 'Completed') return 'completed';
+    return 'pending';
   };
 
   const pendingTasks = filteredTasks.filter((t) => getTabStatus(t.status) === 'pending');
@@ -222,7 +256,7 @@ export default function ManagerTasks() {
   const TaskCard = ({ task }: { task: Task }) => {
     const statusKey = task.status as keyof typeof statusConfig;
     const status = statusConfig[statusKey] || statusConfig['Yet to start'];
-    
+
     return (
       <Card className="nature-card animate-fade-in">
         <CardContent className="p-4 space-y-3">
@@ -232,33 +266,45 @@ export default function ManagerTasks() {
               {task.project_name}
             </Badge>
           </div>
-          
+
           <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
-          
+
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="w-4 h-4" />
               <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
             </div>
-             {/* Assignee display removed for MVP as it requires extra fetching */}
+            {/* Assignee display removed for MVP as it requires extra fetching */}
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <Badge className={status.className}>{status.label}</Badge>
-            {task.status !== 'Completed' && (
-              <Select
-                value={getTabStatus(task.status)}
-                onValueChange={(value) => updateTaskStatus(task.task_id, value)}
-              >
-                <SelectTrigger className="w-auto h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {statusKey === 'In Review' ? (
+              <div className="flex gap-2">
+                <Button size="sm" variant="default" className="h-8 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(task.task_id)}>
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
+                </Button>
+                <Button size="sm" variant="destructive" className="h-8" onClick={() => openRejectDialog(task.task_id)}>
+                  <XCircle className="w-3 h-3 mr-1" /> Reject
+                </Button>
+              </div>
+            ) : (
+              task.status !== 'Completed' && (
+                <Select
+                  value={getTabStatus(task.status)}
+                  onValueChange={(value) => updateTaskStatus(task.task_id, value)}
+                >
+                  <SelectTrigger className="w-auto h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              )
             )}
           </div>
         </CardContent>
@@ -347,14 +393,14 @@ export default function ManagerTasks() {
                 </div>
               </div>
               <div className="space-y-2">
-                  <Label htmlFor="dueDate">Due Date</Label>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={newTask.due_date}
-                    onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                    className="rounded-xl"
-                  />
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={newTask.due_date}
+                  onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                  className="rounded-xl"
+                />
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
@@ -369,6 +415,33 @@ export default function ManagerTasks() {
         </Dialog>
       </PageHeader>
 
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Reject Task
+            </DialogTitle>
+            <DialogDescription>
+              Provide a reason for rejecting this task. The worker will be notified to make revisions.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleReject} className="space-y-4 mt-2">
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g., The photo is blurry, please retake."
+              className="min-h-[100px]"
+              required
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="destructive">Reject Task</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -381,48 +454,48 @@ export default function ManagerTasks() {
       </div>
 
       {loading ? (
-           <div className="text-center py-12 text-muted-foreground">Loading tasks...</div>
+        <div className="text-center py-12 text-muted-foreground">Loading tasks...</div>
       ) : (
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="w-full max-w-md grid grid-cols-4 mb-6">
-          <TabsTrigger value="all">All ({filteredTasks.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pendingTasks.length})</TabsTrigger>
-          <TabsTrigger value="in-progress">Active ({inProgressTasks.length})</TabsTrigger>
-          <TabsTrigger value="completed">Done ({completedTasks.length})</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="w-full max-w-md grid grid-cols-4 mb-6">
+            <TabsTrigger value="all">All ({filteredTasks.length})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({pendingTasks.length})</TabsTrigger>
+            <TabsTrigger value="in-progress">Active ({inProgressTasks.length})</TabsTrigger>
+            <TabsTrigger value="completed">Done ({completedTasks.length})</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTasks.map((task) => (
-              <TaskCard key={task.task_id} task={task} />
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="all">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTasks.map((task) => (
+                <TaskCard key={task.task_id} task={task} />
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="pending">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingTasks.map((task) => (
-              <TaskCard key={task.task_id} task={task} />
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="pending">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingTasks.map((task) => (
+                <TaskCard key={task.task_id} task={task} />
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="in-progress">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inProgressTasks.map((task) => (
-              <TaskCard key={task.task_id} task={task} />
-            ))}
-          </div>
-        </TabsContent>
+          <TabsContent value="in-progress">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {inProgressTasks.map((task) => (
+                <TaskCard key={task.task_id} task={task} />
+              ))}
+            </div>
+          </TabsContent>
 
-        <TabsContent value="completed">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {completedTasks.map((task) => (
-              <TaskCard key={task.task_id} task={task} />
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="completed">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {completedTasks.map((task) => (
+                <TaskCard key={task.task_id} task={task} />
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
       )}
 
       {!loading && filteredTasks.length === 0 && (

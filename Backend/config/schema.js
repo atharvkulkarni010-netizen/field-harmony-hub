@@ -20,7 +20,7 @@ export const createUserTable = async () => {
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
-  
+
   // Migration: Add force_password_reset column if it doesn't exist
   try {
     await connection.query("ALTER TABLE user ADD COLUMN force_password_reset BOOLEAN DEFAULT TRUE");
@@ -82,8 +82,26 @@ export const createProjectTable = async () => {
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
+
+  // Migration: Add geo-fence columns if they don't exist
+  const geofenceCols = [
+    { name: 'geofence_latitude', def: 'DECIMAL(10, 8) DEFAULT NULL' },
+    { name: 'geofence_longitude', def: 'DECIMAL(11, 8) DEFAULT NULL' },
+    { name: 'geofence_radius', def: 'INT DEFAULT 500' },
+  ];
+  for (const col of geofenceCols) {
+    try {
+      await connection.query(`ALTER TABLE project ADD COLUMN ${col.name} ${col.def}`);
+      console.log(`Added ${col.name} column to project table`);
+    } catch (error) {
+      if (error.code !== 'ER_DUP_FIELDNAME') {
+        console.error(`Error adding ${col.name} column:`, error);
+      }
+    }
+  }
+
   connection.release();
-  console.log('Project table created');
+  console.log('Project table created/updated');
 };
 
 // Create Task table
@@ -97,12 +115,24 @@ export const createTaskTable = async () => {
       start_date DATE,
       due_date DATE,
       status VARCHAR(50) NOT NULL DEFAULT 'Yet to start' CHECK (status IN ('Yet to start', 'Ongoing', 'In Review', 'Completed')),
+      rejection_reason TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
+
+  // Migration: Add rejection_reason column if it doesn't exist
+  try {
+    await connection.query("ALTER TABLE task ADD COLUMN rejection_reason TEXT");
+    console.log("Added rejection_reason column to task table");
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      // console.error("Error adding rejection_reason column:", error);
+    }
+  }
+
   connection.release();
   console.log('Task table created');
 };
@@ -145,8 +175,19 @@ export const createAttendanceTable = async () => {
   `;
   const connection = await pool.getConnection();
   await connection.query(query);
+
+  // Migration: Add geofence_status column if it doesn't exist
+  try {
+    await connection.query("ALTER TABLE attendance ADD COLUMN geofence_status VARCHAR(10) DEFAULT NULL");
+    console.log("Added geofence_status column to attendance table");
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      // ignore
+    }
+  }
+
   connection.release();
-  console.log('Attendance table created');
+  console.log('Attendance table created/updated');
 };
 
 // Create Leave table
@@ -264,6 +305,38 @@ export const createOtpStoreTable = async () => {
   console.log('OTP_Store table created');
 };
 
+// Create Skill table
+export const createSkillTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS skill (
+      skill_id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  const connection = await pool.getConnection();
+  await connection.query(query);
+  connection.release();
+  console.log('Skill table created');
+};
+
+// Create User_Skill table
+export const createUserSkillTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS user_skill (
+      user_skill_id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL REFERENCES user(user_id) ON DELETE CASCADE,
+      skill_id INT NOT NULL REFERENCES skill(skill_id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_skill (user_id, skill_id)
+    );
+  `;
+  const connection = await pool.getConnection();
+  await connection.query(query);
+  connection.release();
+  console.log('User_Skill table created');
+};
+
 // Create all tables
 export const createAllTables = async () => {
   try {
@@ -278,6 +351,8 @@ export const createAllTables = async () => {
     await createManagerProjectReportTable();
     await createTokenBlacklistTable();
     await createOtpStoreTable();
+    await createSkillTable();
+    await createUserSkillTable();
     console.log('All tables created successfully');
   } catch (error) {
     console.error('Error creating tables:', error);

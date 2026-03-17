@@ -23,18 +23,18 @@ import { format } from 'date-fns';
 export default function WorkerDashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  
+
   // State for dashboard data
   const [attendance, setAttendance] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [leaveBalance, setLeaveBalance] = useState({ total: 20, used: 0, pending: 0 }); // Hardcoded total for now
-  
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // 1. Fetch Today's Attendance
         try {
           const attendanceRes = await attendanceApi.getToday();
@@ -50,26 +50,26 @@ export default function WorkerDashboard() {
 
         // 3. Fetch Reports (for recent activity)
         if (user?.user_id) {
-           const reportsRes = await reportsApi.getByWorker(user.user_id);
-           setReports(reportsRes.data);
-           
-           // 4. Fetch Leaves (for balance)
-           const leavesRes = await leaveApi.getHistory(user.user_id);
-           const leaves = leavesRes.data;
-           const used = leaves.filter((l: any) => l.status === 'APPROVED').length; // Simplified: 1 leave request = 1 day used (refined logic needed for range)
-           const pending = leaves.filter((l: any) => l.status === 'PENDING').length;
-           
-           // Calculate days used properly
-           let daysUsed = 0;
-           leaves.filter((l: any) => l.status === 'APPROVED').forEach((l: any) => {
-               const start = new Date(l.start_date);
-               const end = new Date(l.end_date);
-               const diffTime = Math.abs(end.getTime() - start.getTime());
-               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
-               daysUsed += diffDays;
-           });
+          const reportsRes = await reportsApi.getByWorker(user.user_id);
+          setReports(reportsRes.data);
 
-           setLeaveBalance(prev => ({ ...prev, used: daysUsed, pending }));
+          // 4. Fetch Leaves (for balance)
+          const leavesRes = await leaveApi.getHistory(user.user_id);
+          const leaves = leavesRes.data;
+          const used = leaves.filter((l: any) => l.status === 'APPROVED').length; // Simplified: 1 leave request = 1 day used (refined logic needed for range)
+          const pending = leaves.filter((l: any) => l.status === 'PENDING').length;
+
+          // Calculate days used properly
+          let daysUsed = 0;
+          leaves.filter((l: any) => l.status === 'APPROVED').forEach((l: any) => {
+            const start = new Date(l.start_date);
+            const end = new Date(l.end_date);
+            const diffTime = Math.abs(end.getTime() - start.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            daysUsed += diffDays;
+          });
+
+          setLeaveBalance(prev => ({ ...prev, used: daysUsed, pending }));
         }
 
       } catch (error) {
@@ -87,27 +87,38 @@ export default function WorkerDashboard() {
   // Derived Values
   const isCheckedIn = !!attendance && !attendance.check_out_time;
   const checkInTime = attendance ? new Date(`1970-01-01T${attendance.check_in_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
-  
+
   // Calculate hours worked if checked in
   let hoursWorked = 0;
-  if (isCheckedIn && attendance) {
-      const start = new Date(`1970-01-01T${attendance.check_in_time}`);
-      const now = new Date();
-      // Adjust now to be on 1970-01-01 for comparison or just use time diff
-      const current = new Date(`1970-01-01T${now.toLocaleTimeString('en-US', { hour12: false })}`);
-      hoursWorked = Math.max(0, (current.getTime() - start.getTime()) / (1000 * 60 * 60));
-  } else if (attendance && attendance.check_out_time) {
-      const start = new Date(`1970-01-01T${attendance.check_in_time}`);
-      const end = new Date(`1970-01-01T${attendance.check_out_time}`);
-      hoursWorked = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+  if (attendance) {
+    // Helper to parse "HH:MM:SS" into a Date object for today
+    const parseTime = (timeStr: string) => {
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, seconds || 0, 0);
+      return date;
+    };
+
+    const checkInDate = parseTime(attendance.check_in_time);
+    let checkOutDate = new Date(); // Default to now
+
+    if (attendance.check_out_time) {
+      checkOutDate = parseTime(attendance.check_out_time);
+    }
+
+    // Calculate difference in milliseconds
+    const diffMs = checkOutDate.getTime() - checkInDate.getTime();
+
+    // Convert to hours (and ensure non-negative)
+    hoursWorked = Math.max(0, diffMs / (1000 * 60 * 60));
   }
 
   const activeTasksCount = tasks.filter(t => t.status === 'Ongoing').length;
   const reportsThisWeek = reports.filter(r => {
-      const reportDate = new Date(r.report_date);
-      const now = new Date();
-      const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
-      return reportDate >= oneWeekAgo;
+    const reportDate = new Date(r.report_date);
+    const now = new Date();
+    const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
+    return reportDate >= oneWeekAgo;
   }).length;
 
   // Priority Task: Find earliest due date that is not completed
@@ -116,7 +127,7 @@ export default function WorkerDashboard() {
     .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())[0];
 
   if (loading) {
-      return <div className="p-8 text-center">Loading dashboard...</div>;
+    return <div className="p-8 text-center">Loading dashboard...</div>;
   }
 
   return (
@@ -148,7 +159,7 @@ export default function WorkerDashboard() {
                     Checked in at {checkInTime}
                   </p>
                 )}
-                 {!isCheckedIn && attendance?.check_out_time && (
+                {!isCheckedIn && attendance?.check_out_time && (
                   <p className="text-sm text-muted-foreground mt-1">
                     Checked out at {new Date(`1970-01-01T${attendance.check_out_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
@@ -214,16 +225,15 @@ export default function WorkerDashboard() {
               <div
                 key={task.assignment_id || task.task_id}
                 className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-                onClick={() => window.location.href='/worker/tasks'} // Simple nav for now
-                style={{cursor: 'pointer'}}
+                onClick={() => window.location.href = '/worker/tasks'} // Simple nav for now
+                style={{ cursor: 'pointer' }}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      task.priority === 'high' // Backend doesn't have priority yet, default handling
+                    className={`w-2 h-2 rounded-full ${task.priority === 'high' // Backend doesn't have priority yet, default handling
                         ? 'bg-destructive'
                         : 'bg-sun'
-                    }`}
+                      }`}
                   />
                   <div>
                     <p className="font-medium">{task.title}</p>
@@ -270,7 +280,7 @@ export default function WorkerDashboard() {
                 </Button>
               </Link>
               <Link to="/worker/attendance" className="block">
-                 {/* Replaced history with attendance since history page might not exist yet or be same */}
+                {/* Replaced history with attendance since history page might not exist yet or be same */}
                 <Button variant="outline" className="w-full justify-start rounded-xl h-12">
                   <Clock className="w-4 h-4 mr-3" />
                   View Attendance
@@ -305,7 +315,7 @@ export default function WorkerDashboard() {
                   </Badge>
                 </div>
               ))}
-               {reports.length === 0 && <p className="text-center text-muted-foreground text-sm py-2">No reports yet.</p>}
+              {reports.length === 0 && <p className="text-center text-muted-foreground text-sm py-2">No reports yet.</p>}
             </CardContent>
           </Card>
         </div>
@@ -314,17 +324,17 @@ export default function WorkerDashboard() {
       {/* Alert / Priority Task */}
       {priorityTask && (
         <Card className="nature-card border-primary/30 bg-primary/5">
-            <CardContent className="p-4">
+          <CardContent className="p-4">
             <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
-                <div>
+              <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
+              <div>
                 <p className="font-medium text-foreground">Priority Task Due {new Date(priorityTask.due_date) < new Date() ? 'Soon' : 'Today'}</p>
                 <p className="text-sm text-muted-foreground">
-                    "{priorityTask.title}" in {priorityTask.project_name} is due {new Date(priorityTask.due_date).toLocaleDateString()}. Status: {priorityTask.status}.
+                  "{priorityTask.title}" in {priorityTask.project_name} is due {new Date(priorityTask.due_date).toLocaleDateString()}. Status: {priorityTask.status}.
                 </p>
-                </div>
+              </div>
             </div>
-            </CardContent>
+          </CardContent>
         </Card>
       )}
     </div>

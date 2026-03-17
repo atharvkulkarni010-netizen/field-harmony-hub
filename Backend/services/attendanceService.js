@@ -1,13 +1,13 @@
 import pool from '../config/database.js';
 
-export const createAttendance = async (user_id, date, check_in_time, check_in_latitude, check_in_longitude, status = 'PRESENT') => {
+export const createAttendance = async (user_id, date, check_in_time, check_in_latitude, check_in_longitude, status = 'PRESENT', geofence_status = null) => {
   const connection = await pool.getConnection();
   try {
     const [result] = await connection.query(
-      'INSERT INTO attendance (user_id, date, check_in_time, check_in_latitude, check_in_longitude, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [user_id, date, check_in_time, check_in_latitude, check_in_longitude, status]
+      'INSERT INTO attendance (user_id, date, check_in_time, check_in_latitude, check_in_longitude, status, geofence_status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [user_id, date, check_in_time, check_in_latitude, check_in_longitude, status, geofence_status]
     );
-    return { attendance_id: result.insertId, user_id, date, check_in_time, check_in_latitude, check_in_longitude, status };
+    return { attendance_id: result.insertId, user_id, date, check_in_time, check_in_latitude, check_in_longitude, status, geofence_status };
   } finally {
     connection.release();
   }
@@ -112,12 +112,30 @@ export const findTeamAttendance = async (manager_id, date) => {
         a.check_out_time,
         a.status,
         a.check_in_latitude,
-        a.check_in_longitude
+        a.check_in_longitude,
+        a.geofence_status
        FROM user u
        LEFT JOIN attendance a ON u.user_id = a.user_id AND a.date = ?
        WHERE u.manager_id = ? AND u.role = 'WORKER'
        ORDER BY u.name ASC`,
       [date, manager_id]
+    );
+    return rows;
+  } finally {
+    connection.release();
+  }
+};
+
+export const findWorkerProjects = async (user_id) => {
+  const connection = await pool.getConnection();
+  try {
+    const [rows] = await connection.query(
+      `SELECT DISTINCT p.project_id, p.name, p.geofence_latitude, p.geofence_longitude, p.geofence_radius
+       FROM task_assignment ta
+       JOIN task t ON ta.task_id = t.task_id
+       JOIN project p ON t.project_id = p.project_id
+       WHERE ta.worker_id = ? AND p.status IN ('Ongoing', 'Yet to start')`,
+      [user_id]
     );
     return rows;
   } finally {
