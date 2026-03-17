@@ -128,7 +128,7 @@ export default function Profile() {
           </CardContent>
         </Card>
 
-        {/* Account Security (Placeholder for now) */}
+        {/* Account Security */}
         <Card className="nature-card">
           <CardHeader>
             <CardTitle className="text-lg font-display flex items-center gap-2">
@@ -138,7 +138,7 @@ export default function Profile() {
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="text-sm text-muted-foreground">
-               Password last changed: Never
+               Password last changed: {profile.last_password_change ? format(new Date(profile.last_password_change), 'MMMM d, yyyy h:mm a') : 'Never'}
              </div>
              {/* Future: Add Change Password Button here */}
           </CardContent>

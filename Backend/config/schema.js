@@ -13,6 +13,7 @@ export const createUserTable = async () => {
       force_password_reset BOOLEAN DEFAULT TRUE,
       is_verified BOOLEAN DEFAULT FALSE,
       verification_token VARCHAR(255),
+      last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );
@@ -47,6 +48,16 @@ export const createUserTable = async () => {
   } catch (error) {
     if (error.code !== 'ER_DUP_FIELDNAME') {
       // console.error("Error adding verification_token column:", error);
+    }
+  }
+
+  // Migration: Add last_password_change column if it doesn't exist
+  try {
+    await connection.query("ALTER TABLE user ADD COLUMN last_password_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+    console.log("Added last_password_change column to user table");
+  } catch (error) {
+    if (error.code !== 'ER_DUP_FIELDNAME') {
+      console.error("Error adding last_password_change column:", error);
     }
   }
 

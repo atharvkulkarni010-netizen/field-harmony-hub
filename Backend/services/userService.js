@@ -58,7 +58,7 @@ export const findUserById = async (user_id) => {
   const connection = await pool.getConnection();
   try {
     const [rows] = await connection.query(
-      'SELECT user_id, name, email, role, manager_id, created_at FROM user WHERE user_id = ?',
+      'SELECT user_id, name, email, role, manager_id, last_password_change, created_at FROM user WHERE user_id = ?',
       [user_id]
     );
     return rows[0];
@@ -85,7 +85,7 @@ export const findAllUsers = async (role = null) => {
   try {
     let query = `
       SELECT 
-        u.user_id, u.name, u.email, u.role, u.manager_id, u.created_at,
+        u.user_id, u.name, u.email, u.role, u.manager_id, u.last_password_change, u.created_at,
         (SELECT COUNT(*) 
          FROM task_assignment ta 
          JOIN task t ON ta.task_id = t.task_id 
@@ -114,7 +114,7 @@ export const findUsersByManager = async (manager_id) => {
   try {
     const [rows] = await connection.query(
       `SELECT 
-        u.user_id, u.name, u.email, u.role, u.manager_id, u.created_at,
+        u.user_id, u.name, u.email, u.role, u.manager_id, u.last_password_change, u.created_at,
         (SELECT COUNT(*) 
          FROM task_assignment ta 
          JOIN task t ON ta.task_id = t.task_id 
@@ -161,7 +161,7 @@ export const updateUserPassword = async (user_id, hashedPassword) => {
   const connection = await pool.getConnection();
   try {
     await connection.query(
-      'UPDATE user SET password = ?, force_password_reset = 0 WHERE user_id = ?',
+      'UPDATE user SET password = ?, force_password_reset = 0, last_password_change = CURRENT_TIMESTAMP WHERE user_id = ?',
       [hashedPassword, user_id]
     );
   } finally {

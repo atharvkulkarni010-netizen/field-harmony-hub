@@ -189,7 +189,7 @@ export const resetPassword = async (req, res) => {
     // Update Password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await connection.query(
-      'UPDATE user SET password = ?, force_password_reset = 0 WHERE email = ?',
+      'UPDATE user SET password = ?, force_password_reset = 0, last_password_change = CURRENT_TIMESTAMP WHERE email = ?',
       [hashedPassword, email]
     );
 
