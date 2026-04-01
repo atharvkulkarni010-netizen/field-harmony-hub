@@ -407,7 +407,11 @@ function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       toast({ title: 'OTP Sent', description: 'Please check your email for the OTP.' });
       setStep('otp');
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to send OTP. Please try again.', variant: 'destructive' });
+      let errorMessage = 'Failed to send OTP. Please try again.';
+      if (axios.isAxiosError(error) && error.response) {
+        errorMessage = error.response.data?.message || errorMessage;
+      }
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }

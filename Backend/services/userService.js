@@ -66,7 +66,7 @@ export const findUserById = async (user_id) => {
   try {
     const [rows] = await connection.query(
       `SELECT 
-        u.user_id, u.name, u.email, u.role, u.manager_id, u.created_at,
+        u.user_id, u.name, u.email, u.role, u.manager_id, u.created_at, u.last_password_change,
         (SELECT GROUP_CONCAT(s.name)
          FROM user_skill us
          JOIN skill s ON us.skill_id = s.skill_id
