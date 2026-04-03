@@ -1,12 +1,12 @@
 import express from 'express';
 import { verifyToken, authorize } from '../middleware/auth.js';
-import { 
-  createProject, 
-  getAllProjects, 
-  getProjectById, 
-  updateProject, 
-  updateProjectStatus, 
-  deleteProject 
+import {
+  createProject,
+  getAllProjects,
+  getProjectById,
+  updateProject,
+  updateProjectStatus,
+  deleteProject
 } from '../controllers/projectController.js';
 
 const router = express.Router();

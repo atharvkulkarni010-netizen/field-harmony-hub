@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { attendanceApi } from '@/services/api';
 import { getAddressFromCoordinates } from '@/services/geocoding';
-import { Calendar, Clock, MapPin, User, Search, Filter, ShieldCheck, ShieldAlert, List, Map as MapIcon } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Search, ShieldCheck, ShieldAlert, List, Map as MapIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -34,7 +34,7 @@ const createCustomIcon = (color: string) => {
 const checkInIcon = createCustomIcon('#22c55e'); // green-500
 const checkOutIcon = createCustomIcon('#ef4444'); // red-500
 
-export default function ManagerAttendance() {
+export default function AdminAttendance() {
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
     const [attendanceData, setAttendanceData] = useState<any[]>([]);
     const [addresses, setAddresses] = useState<Record<string, string>>({});
@@ -46,7 +46,7 @@ export default function ManagerAttendance() {
     const fetchAttendance = async () => {
         try {
             setLoading(true);
-            const res = await attendanceApi.getTeamAttendance(date);
+            const res = await attendanceApi.getAllAttendance(date);
             setAttendanceData(res.data);
         } catch (error) {
             console.error('Error fetching attendance:', error);
@@ -75,7 +75,6 @@ export default function ManagerAttendance() {
 
             // Process one by one to respect rate limits
             for (const record of recordsWithCoords) {
-                // Check if we already have it (double check inside loop)
                 if (addresses[record.attendance_id]) continue;
 
                 const address = await getAddressFromCoordinates(
@@ -94,7 +93,8 @@ export default function ManagerAttendance() {
     }, [attendanceData]);
 
     const filteredData = attendanceData.filter(record =>
-        record.name.toLowerCase().includes(searchTerm.toLowerCase())
+        record.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (record.manager_name && record.manager_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const getStatusBadge = (status: string | null) => {
@@ -117,8 +117,8 @@ export default function ManagerAttendance() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title="Team Attendance"
-                description="Monitor daily attendance of your team"
+                title="Company Attendance"
+                description="Monitor daily attendance of all workers"
             />
 
             <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
@@ -126,7 +126,7 @@ export default function ManagerAttendance() {
                 <div className="relative w-full md:max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search worker..."
+                        placeholder="Search worker or manager..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-9 rounded-xl"
@@ -185,6 +185,7 @@ export default function ManagerAttendance() {
                                 <TableHeader className="bg-muted/50">
                                     <TableRow>
                                         <TableHead>Worker</TableHead>
+                                        <TableHead>Manager</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Check In</TableHead>
                                         <TableHead>Check Out</TableHead>
@@ -208,6 +209,9 @@ export default function ManagerAttendance() {
                                                         <div className="text-xs text-muted-foreground">{record.email}</div>
                                                     </div>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {record.manager_name ? record.manager_name : <span className="text-muted-foreground italic">None</span>}
                                             </TableCell>
                                             <TableCell>{getStatusBadge(record.status)}</TableCell>
                                             <TableCell>

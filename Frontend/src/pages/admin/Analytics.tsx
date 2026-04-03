@@ -10,7 +10,6 @@ import {
   TrendingUp,
   MapPin,
   CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -31,9 +30,10 @@ import { useToast } from '@/components/ui/use-toast';
 export default function Analytics() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  
+
   const [metrics, setMetrics] = useState({
     avg_attendance: 0,
+    attendance_change: 0,
     tasks_this_month: 0,
     active_workers: 0,
     projects_on_track: 0
@@ -89,8 +89,8 @@ export default function Analytics() {
         <StatCard
           title="Avg. Attendance"
           value={metrics.avg_attendance}
-          trend={{ value: 0, isPositive: true }} // Trend not calculated
-          subtitle="today"
+          trend={{ value: Math.abs(metrics.attendance_change), isPositive: metrics.attendance_change >= 0 }}
+          subtitle="vs yesterday"
           icon={Clock}
           variant="primary"
         />
@@ -324,20 +324,6 @@ export default function Analytics() {
         </Card>
       </div>
 
-      {/* Alerts - Keeping static or could be dynamic later */}
-      <Card className="nature-card border-sun/30 bg-sun/5">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-sun mt-0.5" />
-            <div>
-              <p className="font-medium text-foreground">Attention Required</p>
-              <p className="text-sm text-muted-foreground">
-                 System alerts will appear here. (Currently static)
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

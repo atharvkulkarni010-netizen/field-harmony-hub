@@ -136,7 +136,7 @@ export const forgotPassword = async (req, res) => {
     const [users] = await connection.query('SELECT user_id FROM user WHERE email = ?', [email]);
     if (users.length === 0) {
       console.log(`⚠️ Forgot Password: User with email ${email} not found.`);
-      return res.json({ message: 'If your email is registered, you will receive an OTP shortly.' });
+      return res.status(404).json({ message: 'Email not found in the database.' });
     }
 
     // Generate 6-digit OTP

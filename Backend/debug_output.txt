@@ -1,0 +1,104 @@
+Connected to database
+
+--- USERS ---
+[
+  {
+    "user_id": 1,
+    "name": "Atharv Kulkarni",
+    "email": "atharvkulkarni010@gmail.com",
+    "role": "ADMIN",
+    "manager_id": null
+  },
+  {
+    "user_id": 3,
+    "name": "Aman Mirajkar",
+    "email": "amanmirajkar88@gmail.com",
+    "role": "MANAGER",
+    "manager_id": null
+  },
+  {
+    "user_id": 4,
+    "name": "Krushna Dhurve",
+    "email": "krushnadhurve60@gmail.com",
+    "role": "WORKER",
+    "manager_id": 3
+  },
+  {
+    "user_id": 5,
+    "name": "Shardul Anantpure ",
+    "email": "shardulanantpure5@gmail.com",
+    "role": "MANAGER",
+    "manager_id": null
+  },
+  {
+    "user_id": 6,
+    "name": "Bhoomi Koli",
+    "email": "anmaykoli3@gmail.com",
+    "role": "MANAGER",
+    "manager_id": null
+  }
+]
+
+--- LEAVE REQUESTS ---
+[
+  {
+    "leave_id": 1,
+    "user_id": 4,
+    "start_date": "2026-02-10T18:30:00.000Z",
+    "end_date": "2026-02-11T18:30:00.000Z",
+    "status": "APPROVED"
+  },
+  {
+    "leave_id": 2,
+    "user_id": 4,
+    "start_date": "2026-02-10T18:30:00.000Z",
+    "end_date": "2026-02-22T18:30:00.000Z",
+    "status": "PENDING"
+  },
+  {
+    "leave_id": 3,
+    "user_id": 4,
+    "start_date": "2026-02-18T18:30:00.000Z",
+    "end_date": "2026-02-28T18:30:00.000Z",
+    "status": "PENDING"
+  }
+]
+
+--- CHECK PENDING LEAVES FOR MANAGERS ---
+
+Checking for Manager: Aman Mirajkar (ID: 3)
+Found 2 pending leaves:
+[
+  {
+    "leave_id": 2,
+    "user_id": 4,
+    "start_date": "2026-02-10T18:30:00.000Z",
+    "end_date": "2026-02-22T18:30:00.000Z",
+    "reason": "[Personal Leave] XYZ",
+    "status": "PENDING",
+    "approved_by": null,
+    "created_at": "2026-02-10T00:55:12.000Z",
+    "updated_at": "2026-02-10T00:55:12.000Z",
+    "name": "Krushna Dhurve",
+    "email": "krushnadhurve60@gmail.com"
+  },
+  {
+    "leave_id": 3,
+    "user_id": 4,
+    "start_date": "2026-02-18T18:30:00.000Z",
+    "end_date": "2026-02-28T18:30:00.000Z",
+    "reason": "[Personal Leave] abc",
+    "status": "PENDING",
+    "approved_by": null,
+    "created_at": "2026-02-10T01:07:39.000Z",
+    "updated_at": "2026-02-10T01:07:39.000Z",
+    "name": "Krushna Dhurve",
+    "email": "krushnadhurve60@gmail.com"
+  }
+]
+
+Checking for Manager: Shardul Anantpure  (ID: 5)
+No pending leaves found.
+
+Checking for Manager: Bhoomi Koli (ID: 6)
+No pending leaves found.

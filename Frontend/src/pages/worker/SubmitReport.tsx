@@ -25,13 +25,25 @@ export default function SubmitReport() {
   const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [images, setImages] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchAssignedTasks();
   }, []);
+
+  // Safely manage image preview URLs to prevent memory leaks
+  useEffect(() => {
+    const urls = images.map((file) => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [images]);
 
   const fetchAssignedTasks = async () => {
     try {
@@ -50,9 +62,40 @@ export default function SubmitReport() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const newImages = Array.from(files).slice(0, 5 - images.length);
-      setImages([...images, ...newImages]);
+      processFiles(Array.from(files));
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    if (e.dataTransfer.files) {
+      processFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const processFiles = (files: File[]) => {
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    if (imageFiles.length !== files.length) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Only image files are allowed.',
+        variant: 'destructive',
+      });
+    }
+    const newImages = imageFiles.slice(0, 5 - images.length);
+    setImages((prev) => [...prev, ...newImages]);
   };
 
   const removeImage = (index: number) => {
@@ -189,12 +232,19 @@ export default function SubmitReport() {
           <CardContent className="space-y-4">
             {/* Upload Area */}
             <label
-              className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors hover:bg-muted/50 ${
-                images.length >= 5 ? 'opacity-50 cursor-not-allowed' : 'border-primary/30'
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                images.length >= 5 
+                  ? 'opacity-50 cursor-not-allowed border-primary/30' 
+                  : isDragging 
+                    ? 'border-primary bg-primary/10' 
+                    : 'border-primary/30 hover:bg-muted/50'
               }`}
             >
-              <Upload className="w-10 h-10 text-muted-foreground mb-3" />
-              <span className="text-sm font-medium">Click to upload images</span>
+              <Upload className={`w-10 h-10 mb-3 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+              <span className="text-sm font-medium">Click or Drag & Drop images here</span>
               <span className="text-xs text-muted-foreground mt-1">
                 PNG, JPG up to 10MB each
               </span>
@@ -214,7 +264,7 @@ export default function SubmitReport() {
                 {images.map((image, index) => (
                   <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-muted">
                     <img
-                      src={URL.createObjectURL(image)}
+                      src={previewUrls[index]}
                       alt={`Upload ${index + 1}`}
                       className="w-full h-full object-cover"
                     />

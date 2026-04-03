@@ -2,7 +2,7 @@ import * as projectService from '../services/projectService.js';
 
 export const createProject = async (req, res) => {
   try {
-    const { name, description, start_date, end_date, assigned_manager_id } = req.body;
+    const { name, description, start_date, end_date, assigned_manager_id, geofence_latitude, geofence_longitude, geofence_radius } = req.body;
     const { user } = req;
 
     // Manager can only assign to themselves
@@ -10,7 +10,10 @@ export const createProject = async (req, res) => {
       return res.status(403).json({ message: 'Managers can only assign projects to themselves' });
     }
 
-    const project = await projectService.createProject(name, description, start_date, end_date, assigned_manager_id);
+    const project = await projectService.createProject(
+      name, description, start_date, end_date, assigned_manager_id,
+      geofence_latitude || null, geofence_longitude || null, geofence_radius || 500
+    );
     res.status(201).json({ message: 'Project created successfully', project });
   } catch (error) {
     console.error(error);

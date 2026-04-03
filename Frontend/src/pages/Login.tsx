@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, UserRole } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Leaf, Eye, EyeOff, Mail, Lock, TreeDeciduous, Mountain, Waves } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { authApi } from '@/services/api';
+import { authApi, analyticsApi } from '@/services/api';
 import axios from 'axios';
 import {
   Dialog,
@@ -31,9 +31,29 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [tempToken, setTempToken] = useState<string | null>(null);
-  
+
   // Forgot Password Dialog
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // Stats state
+  const [stats, setStats] = useState({
+    active_projects: 0,
+    field_workers: 0,
+    acres_protected: 0
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await analyticsApi.getPublicStats();
+        setStats(response.data);
+      } catch (error) {
+        console.error('Error fetching public stats:', error);
+        // Fallback to default/initial values if fetch fails, or keep 0
+      }
+    };
+    fetchStats();
+  }, []);
 
   // Login function that calls the backend
   const handleLogin = async (email: string, password: string) => {
@@ -77,14 +97,14 @@ export default function Login() {
         title: "Password updated",
         description: "Your password has been changed correctly. Proceeding to login...",
       });
-      
+
       setShowResetDialog(false);
-      
+
       // Proceed with normal login flow now that password is updated
       // We can just reuse the handling logic from handleSubmit effectively
       // But we need to refresh the user state/token potentially or just proceed if the token is valid.
       // Easiest is to auto-navigate based on the role we already received.
-      
+
       // Re-fetch user details or just use what we had?
       // The backend token is valid. We just updated the flag in DB.
       // We can proceed.
@@ -93,7 +113,7 @@ export default function Login() {
         const userData = JSON.parse(userDataStr);
         userData.force_password_reset = false; // Update local state
         sessionStorage.setItem('auth_user', JSON.stringify(userData));
-        
+
         // Use newPassword because the password has just been changed in the DB
         await login(email, newPassword); // Update context
 
@@ -126,7 +146,7 @@ export default function Login() {
     try {
       // Call backend API
       const loginResponse = await handleLogin(email, password);
-      
+
       // Store user data and token
       sessionStorage.setItem('auth_token', loginResponse.token);
       // Convert role to lowercase to match frontend UserRole type
@@ -135,26 +155,26 @@ export default function Login() {
         role: loginResponse.user.role.toLowerCase()
       };
       sessionStorage.setItem('auth_user', JSON.stringify(userData));
-      
+
       if (loginResponse.resetRequired) {
         setTempToken(loginResponse.token);
         setShowResetDialog(true);
         setIsLoading(false);
         return;
       }
-      
+
       // Update auth context
       await login(email, password);
-      
+
       // Get user role and redirect
       const roleRedirects: Record<UserRole, string> = {
         admin: '/admin',
         manager: '/manager',
         worker: '/worker',
       };
-      
+
       navigate(roleRedirects[userData.role as UserRole]);
-      
+
       toast({
         title: 'Welcome back!',
         description: `Logged in as ${loginResponse.user.name}`,
@@ -162,7 +182,7 @@ export default function Login() {
     } catch (error) {
       console.error('Login error:', error);
       let errorMessage = 'Invalid email or password. Please try again.';
-      
+
       if (axios.isAxiosError(error)) {
         if (error.response) {
           // Server responded with error status
@@ -177,7 +197,7 @@ export default function Login() {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: 'Login failed',
         description: errorMessage,
@@ -250,9 +270,9 @@ export default function Login() {
                   </button>
                 </div>
                 <div className="flex justify-end">
-                  <Button 
-                    type="button" 
-                    variant="link" 
+                  <Button
+                    type="button"
+                    variant="link"
                     className="px-0 h-auto text-sm text-primary hover:text-primary/80"
                     onClick={() => setShowForgotPassword(true)}
                   >
@@ -282,17 +302,17 @@ export default function Login() {
       {/* Right side - Illustration */}
       <div className="hidden lg:flex flex-1 gradient-forest relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/90 to-primary" />
-        
+
         {/* Decorative elements */}
         <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/10 to-transparent" />
-        
+
         <div className="relative z-10 flex flex-col items-center justify-center p-12 text-center">
           <div className="flex gap-6 mb-8">
             <TreeDeciduous className="w-16 h-16 text-primary-foreground/80 float-animation" style={{ animationDelay: '0s' }} />
             <Mountain className="w-20 h-20 text-primary-foreground/90 float-animation" style={{ animationDelay: '0.5s' }} />
             <Waves className="w-16 h-16 text-primary-foreground/80 float-animation" style={{ animationDelay: '1s' }} />
           </div>
-          
+
           <h2 className="text-4xl font-bold font-display text-primary-foreground mb-4">
             Protecting Our Planet
           </h2>
@@ -302,15 +322,15 @@ export default function Login() {
 
           <div className="mt-12 grid grid-cols-3 gap-8 text-primary-foreground">
             <div className="text-center">
-              <p className="text-3xl font-bold">150+</p>
+              <p className="text-3xl font-bold">{stats.active_projects > 0 ? `${stats.active_projects}+` : '0'}</p>
               <p className="text-sm text-primary-foreground/70">Active Projects</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold">500+</p>
+              <p className="text-3xl font-bold">{stats.field_workers > 0 ? `${stats.field_workers}+` : '0'}</p>
               <p className="text-sm text-primary-foreground/70">Field Workers</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold">25k</p>
+              <p className="text-3xl font-bold">{stats.acres_protected > 0 ? `${(stats.acres_protected / 1000).toFixed(0)}k` : '0'}</p>
               <p className="text-sm text-primary-foreground/70">Acres Protected</p>
             </div>
           </div>
@@ -359,10 +379,10 @@ export default function Login() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      <ForgotPasswordDialog 
-        open={showForgotPassword} 
-        onOpenChange={setShowForgotPassword} 
+
+      <ForgotPasswordDialog
+        open={showForgotPassword}
+        onOpenChange={setShowForgotPassword}
       />
     </div>
   );
@@ -387,7 +407,11 @@ function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       toast({ title: 'OTP Sent', description: 'Please check your email for the OTP.' });
       setStep('otp');
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to send OTP. Please try again.', variant: 'destructive' });
+      let errorMessage = 'Failed to send OTP. Please try again.';
+      if (axios.isAxiosError(error) && error.response) {
+        errorMessage = error.response.data?.message || errorMessage;
+      }
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -424,12 +448,12 @@ function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         <DialogHeader>
           <DialogTitle>Forgot Password</DialogTitle>
           <DialogDescription>
-            {step === 'email' 
-              ? "Enter your email address to receive a One-Time Password (OTP)." 
+            {step === 'email'
+              ? "Enter your email address to receive a One-Time Password (OTP)."
               : "Enter the OTP sent to your email and your new password."}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           {step === 'email' ? (
             <div className="space-y-2">
@@ -447,7 +471,7 @@ function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               <div className="space-y-2">
                 <Label htmlFor="otp">OTP</Label>
                 <div className="flex gap-2 justify-center">
-                   <Input
+                  <Input
                     id="otp"
                     type="text"
                     placeholder="Enter 6-digit OTP"
@@ -459,7 +483,7 @@ function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </div>
               <div className="space-y-2">
                 <Label htmlFor="reset-new-password">New Password</Label>
-                 <Input
+                <Input
                   id="reset-new-password"
                   type="password"
                   placeholder="Enter new password"
@@ -477,7 +501,7 @@ function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               {isLoading ? 'Sending...' : 'Send OTP'}
             </Button>
           ) : (
-             <Button onClick={handleResetPassword} disabled={isLoading}>
+            <Button onClick={handleResetPassword} disabled={isLoading}>
               {isLoading ? 'Resetting...' : 'Reset Password'}
             </Button>
           )}

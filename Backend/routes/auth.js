@@ -19,8 +19,9 @@ router.post('/reset-password', authController.resetPassword);
 router.post('/cleanup-tokens', authController.cleanupTokens);
 
 // Registration and Verification
-router.post('/register', authController.register);
-router.post('/register-admin', authController.registerAdmin);
+// Public registration disabled for security. Use /api/users/register with an ADMIN token instead.
+// router.post('/register', authController.register);
+// router.post('/register-admin', authController.registerAdmin);
 router.get('/verify-email', authController.verifyEmail);
 
 export default router;

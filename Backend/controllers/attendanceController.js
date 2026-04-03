@@ -1,5 +1,6 @@
 import * as attendanceService from '../services/attendanceService.js';
 import * as userService from '../services/userService.js';
+import { checkWorkerAgainstProjects } from '../utils/geofenceUtils.js';
 
 export const checkIn = async (req, res) => {
   try {
@@ -11,16 +12,32 @@ export const checkIn = async (req, res) => {
       return res.status(400).json({ message: 'Already checked in for this date' });
     }
 
+    // Geo-fence validation
+    let geofenceResult = { status: null, nearest_project: null, distance: null };
+    if (check_in_latitude && check_in_longitude) {
+      const projects = await attendanceService.findWorkerProjects(user.user_id);
+      geofenceResult = checkWorkerAgainstProjects(
+        Number(check_in_latitude),
+        Number(check_in_longitude),
+        projects
+      );
+    }
+
     const attendance = await attendanceService.createAttendance(
       user.user_id,
       date,
       check_in_time,
       check_in_latitude,
       check_in_longitude,
-      'PRESENT'
+      'PRESENT',
+      geofenceResult.status
     );
 
-    res.status(201).json({ message: 'Checked in successfully', attendance });
+    res.status(201).json({
+      message: 'Checked in successfully',
+      attendance,
+      geofence: geofenceResult,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error during check-in' });
@@ -40,6 +57,10 @@ export const checkOut = async (req, res) => {
 
     if (attendance.user_id !== user.user_id) {
       return res.status(403).json({ message: 'You can only check out your own records' });
+    }
+
+    if (attendance.check_out_time) {
+      return res.status(400).json({ message: 'You have already checked out for today' });
     }
 
     const updated = await attendanceService.updateCheckOut(
@@ -96,7 +117,7 @@ export const getTodayAttendance = async (req, res) => {
     const attendance = await attendanceService.findAttendanceByUserAndDate(user.user_id, today);
     // Return null if not checked in instead of 404 to avoid console errors
     if (!attendance) {
-      return res.json(null); 
+      return res.json(null);
     }
 
     res.json(attendance);
@@ -146,10 +167,29 @@ export const getTeamAttendance = async (req, res) => {
 
     const queryDate = date || new Date().toISOString().split('T')[0];
     const attendance = await attendanceService.findTeamAttendance(user.user_id, queryDate);
-    
+
     res.json(attendance);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching team attendance' });
+  }
+};
+
+export const getAllAttendance = async (req, res) => {
+  try {
+    const { user } = req;
+    const { date } = req.query;
+
+    if (user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Only admins can view all attendance' });
+    }
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+    const attendance = await attendanceService.findAllAttendance(queryDate);
+
+    res.json(attendance);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching all attendance' });
   }
 };

@@ -22,9 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain, FolderSearch } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
 import { projectsApi, usersApi } from '@/services/api';
+import { ProjectDetailsDialog } from './ProjectDetailsDialog';
+
 
 // Project interface
 interface Project {
@@ -38,9 +43,13 @@ interface Project {
   created_at: string;
   updated_at: string;
   manager_name?: string; // Added for display purposes
-  // Additional properties for frontend display
-  id?: string;
+  // Additional properties
   location?: string;
+  google_maps_link?: string;
+  location_type?: 'On-site' | 'Remote' | 'Hybrid';
+  geofence_latitude?: number | string;
+  geofence_longitude?: number | string;
+  geofence_radius?: number | string;
   progress?: number;
   tasks?: { total: number; completed: number };
   workers?: number;
@@ -70,15 +79,28 @@ export default function Projects() {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newProject, setNewProject] = useState({
+  const [newProject, setNewProject] = useState<Partial<Project>>({
     name: '',
     description: '',
-    assigned_manager_id: '',
+    assigned_manager_id: '' as any, // Cast to any to handle string/number mismatch in form binding
     start_date: '',
     end_date: '',
+    location: '',
+    google_maps_link: '',
+    location_type: 'On-site',
+    geofence_latitude: '',
+    geofence_longitude: '',
+    geofence_radius: 500
   });
+
+  // State for details dialog
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
   const { toast } = useToast();
+
 
   // Fetch projects and managers from API
   const fetchData = async () => {
@@ -89,9 +111,9 @@ export default function Projects() {
         projectsApi.getAll(),
         usersApi.getManagers()
       ]);
-      
+
       const managersData = managersResponse.data;
-      
+
       // Combine project data with manager names for display
       const projectsWithManagers = projectsResponse.data.map((project: any) => {
         // Calculate progress
@@ -107,20 +129,21 @@ export default function Projects() {
           // It did NOT join 'user' table for manager name.
           // So we still need the manager lookup logic if it was there, or rely on frontend matching.
           manager_name: managersData.find((m: any) => m.user_id === project.assigned_manager_id)?.name || 'Unassigned',
-          
-          status: project.status === 'Yet to start' ? 'planning' : 
-                 project.status === 'Ongoing' ? 'active' : 
-                 project.status === 'In Review' ? 'active' : 
-                 'completed',
-          
+
+          status: project.status === 'Yet to start' ? 'planning' :
+            project.status === 'Ongoing' ? 'active' :
+              project.status === 'In Review' ? 'active' :
+                'completed',
+
           progress: progress,
           tasks: { total: totalTasks, completed: completedTasks },
           workers: project.assigned_workers_count || 0,
-          location: 'Location TBD', // Location is not in DB yet
+          // location is now in project object from DB, default text below if null
+          location: project.location || 'Location TBD',
           icon: TreeDeciduous
         };
       });
-      
+
       setProjects(projectsWithManagers);
       setManagers(managersData);
     } catch (error) {
@@ -141,32 +164,55 @@ export default function Projects() {
 
   const filteredProjects = projects.filter(
     (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.manager_name && p.manager_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (p.location && p.location.toLowerCase().includes(searchTerm.toLowerCase()))
+      p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      (p.manager_name && p.manager_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (p.location && p.location.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
   );
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (newProject.start_date && newProject.end_date) {
+      if (new Date(newProject.end_date) < new Date(newProject.start_date)) {
+        toast({
+          title: 'Invalid Dates',
+          description: 'End Date cannot be before Start Date.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     try {
       const projectData = {
         name: newProject.name,
         description: newProject.description,
         start_date: newProject.start_date,
         end_date: newProject.end_date,
-        assigned_manager_id: parseInt(newProject.assigned_manager_id)
+        assigned_manager_id: typeof newProject.assigned_manager_id === 'string' ? parseInt(newProject.assigned_manager_id) : newProject.assigned_manager_id,
+        location: newProject.location,
+        google_maps_link: newProject.google_maps_link,
+        location_type: newProject.location_type,
+        geofence_latitude: newProject.geofence_latitude ? Number(newProject.geofence_latitude) : null,
+        geofence_longitude: newProject.geofence_longitude ? Number(newProject.geofence_longitude) : null,
+        geofence_radius: newProject.geofence_radius ? Number(newProject.geofence_radius) : 500
       };
-      
+
       await projectsApi.create(projectData);
-      
+
       // Refresh projects list
       await fetchData();
-      
-      setNewProject({ name: '', description: '', assigned_manager_id: '', start_date: '', end_date: '' });
+
+      setNewProject({
+        name: '', description: '', assigned_manager_id: '' as any, start_date: '', end_date: '',
+        location: '', google_maps_link: '', location_type: 'On-site',
+        geofence_latitude: '', geofence_longitude: '', geofence_radius: 500
+      });
       setIsDialogOpen(false);
       toast({
         title: 'Project Created',
         description: `${newProject.name} has been created successfully.`,
+        variant: 'default' // Changed to default for success
       });
     } catch (error: any) {
       console.error('Error creating project:', error);
@@ -191,15 +237,15 @@ export default function Projects() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-display">Create New Project</DialogTitle>
               <DialogDescription>
                 Set up a new conservation project and assign a manager.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateProject} className="space-y-4 mt-4">
-              <div className="space-y-2">
+            <form onSubmit={handleCreateProject} className="space-y-3 mt-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="name">Project Name</Label>
                 <Input
                   id="name"
@@ -210,21 +256,109 @@ export default function Projects() {
                   required
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   value={newProject.description}
                   onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
                   placeholder="Describe the project goals and scope"
-                  className="rounded-xl min-h-[80px]"
+                  className="rounded-xl min-h-[60px]"
                 />
               </div>
-              <div className="space-y-2">
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="location">Location / Site Name</Label>
+                  <Input
+                    id="location"
+                    value={newProject.location || ''}
+                    onChange={(e) => setNewProject({ ...newProject, location: e.target.value })}
+                    placeholder="e.g., Riverside Park"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="location_type">Location Type</Label>
+                  <Select
+                    value={newProject.location_type || 'On-site'}
+                    onValueChange={(value: 'On-site' | 'Remote' | 'Hybrid') => setNewProject({ ...newProject, location_type: value })}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="On-site">On-site</SelectItem>
+                      <SelectItem value="Remote">Remote</SelectItem>
+                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="google_maps_link">Google Maps Link (Optional)</Label>
+                <Input
+                  id="google_maps_link"
+                  value={newProject.google_maps_link || ''}
+                  onChange={(e) => setNewProject({ ...newProject, google_maps_link: e.target.value })}
+                  placeholder="Paste Google Maps URL here"
+                  className="rounded-xl"
+                />
+              </div>
+
+              {/* Geo-Fence Settings — compact */}
+              <div className="space-y-2 p-2.5 rounded-xl bg-muted/30 border border-dashed border-border">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-primary" />
+                  Geo-Fence Settings
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="geofence_lat" className="text-xs">Latitude</Label>
+                    <Input
+                      id="geofence_lat"
+                      type="number"
+                      step="any"
+                      value={newProject.geofence_latitude ?? ''}
+                      onChange={(e) => setNewProject({ ...newProject, geofence_latitude: e.target.value })}
+                      placeholder="18.5204"
+                      className="rounded-xl h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="geofence_lng" className="text-xs">Longitude</Label>
+                    <Input
+                      id="geofence_lng"
+                      type="number"
+                      step="any"
+                      value={newProject.geofence_longitude ?? ''}
+                      onChange={(e) => setNewProject({ ...newProject, geofence_longitude: e.target.value })}
+                      placeholder="73.8567"
+                      className="rounded-xl h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="geofence_radius" className="text-xs">Radius (m)</Label>
+                    <Input
+                      id="geofence_radius"
+                      type="number"
+                      min="50"
+                      max="10000"
+                      value={newProject.geofence_radius ?? 500}
+                      onChange={(e) => setNewProject({ ...newProject, geofence_radius: e.target.value })}
+                      placeholder="500"
+                      className="rounded-xl h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <Label htmlFor="manager">Assign Manager</Label>
                 <Select
-                  value={newProject.assigned_manager_id}
-                  onValueChange={(value) => setNewProject({ ...newProject, assigned_manager_id: value })}
+                  value={newProject.assigned_manager_id ? newProject.assigned_manager_id.toString() : ''}
+                  onValueChange={(value) => setNewProject({ ...newProject, assigned_manager_id: parseInt(value) })}
                 >
                   <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Select manager" />
@@ -238,29 +372,38 @@ export default function Projects() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="startDate">Start Date</Label>
                   <Input
                     id="startDate"
                     type="date"
                     value={newProject.start_date}
-                    onChange={(e) => setNewProject({ ...newProject, start_date: e.target.value })}
+                    onChange={(e) => {
+                      const newStartDate = e.target.value;
+                      // If the start date is pushed past the end date, automatically sync them or clear end date
+                      if (newProject.end_date && new Date(newProject.end_date) < new Date(newStartDate)) {
+                        setNewProject({ ...newProject, start_date: newStartDate, end_date: newStartDate });
+                      } else {
+                        setNewProject({ ...newProject, start_date: newStartDate });
+                      }
+                    }}
                     className="rounded-xl"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="endDate">End Date</Label>
                   <Input
                     id="endDate"
                     type="date"
+                    min={newProject.start_date} // UI lock: prevents selecting dates before start_date
                     value={newProject.end_date}
                     onChange={(e) => setNewProject({ ...newProject, end_date: e.target.value })}
                     className="rounded-xl"
                   />
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-3">
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
@@ -286,8 +429,10 @@ export default function Projects() {
 
       {/* Loading State */}
       {loading && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading projects...</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-[250px] rounded-xl" />
+          ))}
         </div>
       )}
 
@@ -295,92 +440,110 @@ export default function Projects() {
       {!loading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {filteredProjects.map((project, index) => {
-          const Icon = project.icon;
-          return (
-            <Card
-              key={project.project_id}
-              className="nature-card animate-fade-in overflow-hidden"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-primary" />
+            const Icon = project.icon;
+            return (
+              <Card
+                key={project.project_id}
+                className="nature-card animate-fade-in overflow-hidden"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Icon className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-display">{project.name}</CardTitle>
+                        <Badge className={statusStyles[project.status as keyof typeof statusStyles]}>
+                          {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                        </Badge>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-lg font-display">{project.name}</CardTitle>
-                      <Badge className={statusStyles[project.status as keyof typeof statusStyles]}>
-                        {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                      </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {project.description}
+                  </p>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{project.progress}%</span>
+                    </div>
+                    <Progress value={project.progress} className="h-2" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="w-4 h-4" />
+                      <span>{project.manager_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
+                      <span className="truncate">{project.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="w-4 h-4" />
+                      <span>{new Date(project.start_date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <ClipboardList className="w-4 h-4" />
+                      <span>{project.tasks.completed}/{project.tasks.total} Tasks</span>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {project.description}
-                </p>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">{project.progress}%</span>
-                  </div>
-                  <Progress value={project.progress} className="h-2" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="w-4 h-4" />
-                    <span>{project.manager_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span className="truncate">{project.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date(project.start_date).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <ClipboardList className="w-4 h-4" />
-                    <span>{project.tasks.completed}/{project.tasks.total} Tasks</span>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-border flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {[...Array(Math.min(project.workers, 3))].map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-7 h-7 rounded-full bg-secondary/20 border-2 border-card flex items-center justify-center text-xs font-medium"
-                        >
-                          {String.fromCharCode(65 + i)}
-                        </div>
-                      ))}
+                  <div className="pt-3 border-t border-border flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-2">
+                        {[...Array(Math.min(project.workers, 3))].map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-7 h-7 rounded-full bg-secondary/20 border-2 border-card flex items-center justify-center text-xs font-medium"
+                          >
+                            {String.fromCharCode(65 + i)}
+                          </div>
+                        ))}
+                      </div>
+                      {project.workers > 3 && (
+                        <span className="text-sm text-muted-foreground">+{project.workers - 3}</span>
+                      )}
                     </div>
-                    {project.workers > 3 && (
-                      <span className="text-sm text-muted-foreground">+{project.workers - 3}</span>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary"
+                      onClick={() => {
+                        setSelectedProjectId(project.project_id);
+                        setIsDetailsOpen(true);
+                      }}
+                    >
+                      View Details →
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-primary">
-                    View Details →
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {!loading && filteredProjects.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No projects found matching your search.</p>
-        </div>
+        <EmptyState 
+          icon={FolderSearch}
+          title="No projects found"
+          description={searchTerm ? `We couldn't find any projects matching "${searchTerm}". Try adjusting your search.` : "You haven't created any projects yet."}
+          actionLabel={searchTerm ? "Clear Search" : undefined}
+          onAction={searchTerm ? () => setSearchTerm('') : undefined}
+          className="animate-fade-in"
+        />
       )}
+      <ProjectDetailsDialog
+        projectId={selectedProjectId}
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+      />
     </div>
   );
 }

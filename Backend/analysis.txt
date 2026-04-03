@@ -1,0 +1,9 @@
+Projects found: 4
+- Tree Plantation (ID: 2)
+- Blood Donation (ID: 3)
+- Green Canopy 2026 (ID: 4)
+- Test Location Project (ID: 5)
+
+Worker Project Assignments:
+Krushna Dhurve -> Blood Donation
+Krushna Dhurve -> Green Canopy 2026

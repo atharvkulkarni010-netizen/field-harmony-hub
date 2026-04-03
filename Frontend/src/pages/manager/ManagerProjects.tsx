@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { projectsApi } from '@/services/api';
+import { ProjectDetailsDialog } from '../admin/ProjectDetailsDialog';
 
 // Project interface (Simplified for display)
 interface Project {
@@ -40,13 +41,15 @@ export default function ManagerProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const { toast } = useToast();
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const res = await projectsApi.getAll(); // Returns filtered list for managers
-      
+
       const enrichedProjects = res.data.map((project: any) => {
         // Calculate progress
         const totalTasks = project.total_tasks || 0;
@@ -62,7 +65,7 @@ export default function ManagerProjects() {
           icon: TreeDeciduous
         };
       });
-      
+
       setProjects(enrichedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -80,9 +83,14 @@ export default function ManagerProjects() {
     fetchData();
   }, []);
 
-  const filteredProjects = projects.filter(p => 
+  const filteredProjects = projects.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleViewDetails = (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setDetailsOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -157,13 +165,18 @@ export default function ManagerProjects() {
                       <span>{project.tasks?.completed}/{project.tasks?.total} Tasks</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
-                       <Users className="w-4 h-4" />
-                       <span>{project.workers} Workers</span>
+                      <Users className="w-4 h-4" />
+                      <span>{project.workers} Workers</span>
                     </div>
                   </div>
 
                   <div className="pt-3 border-t border-border flex items-center justify-end">
-                    <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary hover:bg-primary/10"
+                      onClick={() => handleViewDetails(project.project_id)}
+                    >
                       View Details →
                     </Button>
                   </div>
@@ -173,12 +186,19 @@ export default function ManagerProjects() {
           })}
         </div>
       )}
-      
+
       {!loading && filteredProjects.length === 0 && (
-         <div className="text-center py-12">
-           <p className="text-muted-foreground">No projects assigned to you yet.</p>
-         </div>
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No projects assigned to you yet.</p>
+        </div>
       )}
+
+
+      <ProjectDetailsDialog
+        projectId={selectedProjectId}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
     </div>
   );
 }

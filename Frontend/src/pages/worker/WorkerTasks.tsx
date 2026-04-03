@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardList, Calendar, MapPin, CheckCircle2, Clock, Play } from 'lucide-react';
+import { ClipboardList, Calendar, MapPin, CheckCircle2, Clock, Play, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { taskAssignmentsApi, tasksApi } from '@/services/api';
 
@@ -17,6 +17,7 @@ interface Task {
   status: 'Yet to start' | 'Ongoing' | 'In Review' | 'Completed';
   location?: string;
   assignment_id: number;
+  rejection_reason?: string;
 }
 
 const statusConfig = {
@@ -73,19 +74,19 @@ export default function WorkerTasks() {
     }
   };
 
-  const handleCompleteTask = async (taskId: number) => {
+  const handleSubmitTask = async (taskId: number) => {
     try {
-      await tasksApi.updateStatus(taskId.toString(), 'Completed');
+      await tasksApi.submit(taskId.toString());
       toast({
-        title: 'Task Completed',
-        description: 'Great work! The task has been marked as complete.',
+        title: 'Task Submitted',
+        description: 'Task submitted for manager review.',
       });
       fetchTasks(); // Refresh list
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error('Error submitting task:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update task status.',
+        description: 'Failed to submit task.',
         variant: 'destructive',
       });
     }
@@ -105,6 +106,15 @@ export default function WorkerTasks() {
             </div>
             {/* Priority is not in backend yet, handled via logic or omitted */}
           </div>
+
+          {task.rejection_reason && task.status === 'Ongoing' && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 text-sm text-destructive">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-semibold">Revision Requested:</span> {task.rejection_reason}
+              </div>
+            </div>
+          )}
 
           <p className="text-sm text-muted-foreground">{task.description}</p>
 
@@ -140,12 +150,18 @@ export default function WorkerTasks() {
               {task.status === 'Ongoing' && (
                 <Button
                   size="sm"
-                  onClick={() => handleCompleteTask(task.task_id)}
+                  onClick={() => handleSubmitTask(task.task_id)}
                   className="rounded-lg gradient-forest text-primary-foreground"
                 >
                   <CheckCircle2 className="w-3 h-3 mr-1" />
-                  Complete
+                  Submit for Review
                 </Button>
+              )}
+              {task.status === 'In Review' && (
+                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Waiting for Approval
+                </Badge>
               )}
             </div>
           </div>
@@ -155,7 +171,7 @@ export default function WorkerTasks() {
   };
 
   if (isLoading) {
-      return <div className="p-8 text-center">Loading tasks...</div>;
+    return <div className="p-8 text-center">Loading tasks...</div>;
   }
 
   return (
@@ -187,7 +203,7 @@ export default function WorkerTasks() {
             {pendingTasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-             {pendingTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No pending tasks.</p>}
+            {pendingTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No pending tasks.</p>}
           </div>
         </TabsContent>
 
@@ -196,7 +212,7 @@ export default function WorkerTasks() {
             {inProgressTasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-             {inProgressTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No active tasks.</p>}
+            {inProgressTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No active tasks.</p>}
           </div>
         </TabsContent>
 
@@ -205,7 +221,7 @@ export default function WorkerTasks() {
             {completedTasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-             {completedTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No completed tasks.</p>}
+            {completedTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No completed tasks.</p>}
           </div>
         </TabsContent>
       </Tabs>
