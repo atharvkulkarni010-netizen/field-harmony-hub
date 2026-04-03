@@ -145,7 +145,15 @@ export const updateUser = async (req, res) => {
       return res.status(403).json({ message: 'You can only update your own profile' });
     }
 
-    const { name, email, role, manager_id, skills } = req.body;
+    let { name, email, role, manager_id, skills } = req.body;
+    
+    // Prevent privilege escalation: workers/managers cannot change their own role or manager_id
+    if (user.role !== 'ADMIN') {
+      const existingUser = await userService.findUserById(user_id);
+      role = existingUser.role;
+      manager_id = existingUser.manager_id;
+    }
+
     const updatedUser = await userService.updateUser(user_id, { name, email, role, manager_id, skills });
     res.json({ message: 'User updated successfully', user: updatedUser });
   } catch (error) {

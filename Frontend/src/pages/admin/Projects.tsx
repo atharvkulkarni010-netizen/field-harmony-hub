@@ -22,8 +22,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain, FolderSearch } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
 import { projectsApi, usersApi } from '@/services/api';
 import { ProjectDetailsDialog } from './ProjectDetailsDialog';
 
@@ -76,6 +79,7 @@ export default function Projects() {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState<Partial<Project>>({
     name: '',
@@ -160,13 +164,25 @@ export default function Projects() {
 
   const filteredProjects = projects.filter(
     (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.manager_name && p.manager_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (p.location && p.location.toLowerCase().includes(searchTerm.toLowerCase()))
+      p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      (p.manager_name && p.manager_name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+      (p.location && p.location.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
   );
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (newProject.start_date && newProject.end_date) {
+      if (new Date(newProject.end_date) < new Date(newProject.start_date)) {
+        toast({
+          title: 'Invalid Dates',
+          description: 'End Date cannot be before Start Date.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     try {
       const projectData = {
         name: newProject.name,
@@ -363,7 +379,15 @@ export default function Projects() {
                     id="startDate"
                     type="date"
                     value={newProject.start_date}
-                    onChange={(e) => setNewProject({ ...newProject, start_date: e.target.value })}
+                    onChange={(e) => {
+                      const newStartDate = e.target.value;
+                      // If the start date is pushed past the end date, automatically sync them or clear end date
+                      if (newProject.end_date && new Date(newProject.end_date) < new Date(newStartDate)) {
+                        setNewProject({ ...newProject, start_date: newStartDate, end_date: newStartDate });
+                      } else {
+                        setNewProject({ ...newProject, start_date: newStartDate });
+                      }
+                    }}
                     className="rounded-xl"
                   />
                 </div>
@@ -372,6 +396,7 @@ export default function Projects() {
                   <Input
                     id="endDate"
                     type="date"
+                    min={newProject.start_date} // UI lock: prevents selecting dates before start_date
                     value={newProject.end_date}
                     onChange={(e) => setNewProject({ ...newProject, end_date: e.target.value })}
                     className="rounded-xl"
@@ -404,8 +429,10 @@ export default function Projects() {
 
       {/* Loading State */}
       {loading && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading projects...</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-[250px] rounded-xl" />
+          ))}
         </div>
       )}
 
@@ -503,9 +530,14 @@ export default function Projects() {
       )}
 
       {!loading && filteredProjects.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No projects found matching your search.</p>
-        </div>
+        <EmptyState 
+          icon={FolderSearch}
+          title="No projects found"
+          description={searchTerm ? `We couldn't find any projects matching "${searchTerm}". Try adjusting your search.` : "You haven't created any projects yet."}
+          actionLabel={searchTerm ? "Clear Search" : undefined}
+          onAction={searchTerm ? () => setSearchTerm('') : undefined}
+          className="animate-fade-in"
+        />
       )}
       <ProjectDetailsDialog
         projectId={selectedProjectId}

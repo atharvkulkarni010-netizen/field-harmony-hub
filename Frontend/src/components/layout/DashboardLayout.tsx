@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { ErrorBoundary } from '@/components/wrappers/ErrorBoundary';
 import { useAuth, UserRole } from '@/context/AuthContext';
 
 interface DashboardLayoutProps {
@@ -39,8 +40,10 @@ export function DashboardLayout({ allowedRoles }: DashboardLayoutProps) {
     <div className="min-h-screen flex w-full bg-background leaf-pattern">
       <Sidebar />
       <main className="flex-1 min-w-0 lg:pl-0 pl-0">
-        <div className="p-4 md:p-6 lg:p-8 pt-16 lg:pt-8">
-          <Outlet />
+        <div className="p-4 md:p-6 lg:p-8 pt-16 lg:pt-8 h-full">
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

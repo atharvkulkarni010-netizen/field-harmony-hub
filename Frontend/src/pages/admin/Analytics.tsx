@@ -10,7 +10,6 @@ import {
   TrendingUp,
   MapPin,
   CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -325,20 +324,6 @@ export default function Analytics() {
         </Card>
       </div>
 
-      {/* Alerts - Keeping static or could be dynamic later */}
-      <Card className="nature-card border-sun/30 bg-sun/5">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-sun mt-0.5" />
-            <div>
-              <p className="font-medium text-foreground">Attention Required</p>
-              <p className="text-sm text-muted-foreground">
-                System alerts will appear here. (Currently static)
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

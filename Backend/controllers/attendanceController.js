@@ -59,6 +59,10 @@ export const checkOut = async (req, res) => {
       return res.status(403).json({ message: 'You can only check out your own records' });
     }
 
+    if (attendance.check_out_time) {
+      return res.status(400).json({ message: 'You have already checked out for today' });
+    }
+
     const updated = await attendanceService.updateCheckOut(
       attendance_id,
       check_out_time,
@@ -168,5 +172,24 @@ export const getTeamAttendance = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching team attendance' });
+  }
+};
+
+export const getAllAttendance = async (req, res) => {
+  try {
+    const { user } = req;
+    const { date } = req.query;
+
+    if (user.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Only admins can view all attendance' });
+    }
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+    const attendance = await attendanceService.findAllAttendance(queryDate);
+
+    res.json(attendance);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching all attendance' });
   }
 };

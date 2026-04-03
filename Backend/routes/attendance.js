@@ -6,13 +6,17 @@ import {
   getUserAttendance, 
   getTodayAttendance, 
   updateAttendanceStatus,
-  getTeamAttendance
+  getTeamAttendance,
+  getAllAttendance
 } from '../controllers/attendanceController.js';
 
 const router = express.Router();
 
 // Get Team Attendance (Manager)
 router.get('/manager/team-attendance', verifyToken, authorize('MANAGER'), getTeamAttendance);
+
+// Get All Attendance (Admin)
+router.get('/admin/all-attendance', verifyToken, authorize('ADMIN'), getAllAttendance);
 
 // Check in (Workers)
 router.post('/check-in', verifyToken, authorize('WORKER'), checkIn);

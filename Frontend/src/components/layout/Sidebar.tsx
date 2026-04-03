@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
   { label: 'Managers', path: '/admin/managers', icon: Users, roles: ['admin'] },
   { label: 'Workers', path: '/admin/workers', icon: UserPlus, roles: ['admin'] },
   { label: 'Projects', path: '/admin/projects', icon: FolderKanban, roles: ['admin'] },
+  { label: 'Attendance', path: '/admin/attendance', icon: Clock, roles: ['admin'] },
   { label: 'Analytics', path: '/admin/analytics', icon: BarChart3, roles: ['admin'] },
 
   // Manager items

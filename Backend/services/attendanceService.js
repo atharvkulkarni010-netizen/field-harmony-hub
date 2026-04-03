@@ -142,3 +142,35 @@ export const findWorkerProjects = async (user_id) => {
     connection.release();
   }
 };
+
+export const findAllAttendance = async (date) => {
+  const connection = await pool.getConnection();
+  try {
+    const [rows] = await connection.query(
+      `SELECT 
+        u.user_id, 
+        u.name, 
+        u.email,
+        u.manager_id,
+        m.name as manager_name,
+        a.attendance_id,
+        a.check_in_time,
+        a.check_out_time,
+        a.status,
+        a.check_in_latitude,
+        a.check_in_longitude,
+        a.check_out_latitude,
+        a.check_out_longitude,
+        a.geofence_status
+       FROM user u
+       LEFT JOIN user m ON u.manager_id = m.user_id
+       LEFT JOIN attendance a ON u.user_id = a.user_id AND a.date = ?
+       WHERE u.role = 'WORKER'
+       ORDER BY u.name ASC`,
+      [date]
+    );
+    return rows;
+  } finally {
+    connection.release();
+  }
+};

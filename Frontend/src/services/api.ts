@@ -120,6 +120,7 @@ export const attendanceApi = {
   getHistory: (userId: string) => api.get(`/attendance/user/${userId}`),
   getToday: () => api.get('/attendance/today/my-attendance'),
   getTeamAttendance: (date?: string) => api.get('/attendance/manager/team-attendance', { params: { date } }),
+  getAllAttendance: (date?: string) => api.get('/attendance/admin/all-attendance', { params: { date } }),
   // getByWorker: (workerId: string) => api.get(`/attendance/user/${workerId}`), // Same as getHistory
 };
 

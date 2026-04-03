@@ -253,3 +253,14 @@ export const getRecentTeamReports = async (req, res) => {
     res.status(500).json({ message: 'Error fetching recent team reports' });
   }
 };
+
+export const getTaskReports = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const reports = await dailyReportService.findReportsForTask(taskId);
+    res.json(reports);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching reports for task' });
+  }
+};

@@ -22,6 +22,7 @@ import Managers from "./pages/admin/Managers";
 import Workers from "./pages/admin/Workers";
 import Projects from "./pages/admin/Projects";
 import Analytics from "./pages/admin/Analytics";
+import AdminAttendance from "./pages/admin/AdminAttendance";
 
 // Manager Pages
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/admin/managers" element={<AdminProtectedWrapper><Managers /></AdminProtectedWrapper>} />
               <Route path="/admin/workers" element={<AdminProtectedWrapper><Workers /></AdminProtectedWrapper>} />
               <Route path="/admin/projects" element={<AdminProtectedWrapper><Projects /></AdminProtectedWrapper>} />
+              <Route path="/admin/attendance" element={<AdminProtectedWrapper><AdminAttendance /></AdminProtectedWrapper>} />
               <Route path="/admin/analytics" element={<AdminProtectedWrapper><Analytics /></AdminProtectedWrapper>} />
             </Route>
 

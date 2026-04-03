@@ -49,6 +49,8 @@ export const getProjectTasks = async (req, res) => {
 export const getTaskById = async (req, res) => {
   try {
     const { task_id } = req.params;
+    const { user } = req;
+    
     const task = await taskService.findTaskById(task_id);
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
