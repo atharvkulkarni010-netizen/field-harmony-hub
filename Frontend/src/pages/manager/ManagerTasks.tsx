@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { PageHeader } from '@/components/ui/page-header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -13,37 +13,57 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Calendar, MapPin, User, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { projectsApi, usersApi, tasksApi, taskAssignmentsApi } from '@/services/api';
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus,
+  Search,
+  Calendar,
+  MapPin,
+  User,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  projectsApi,
+  usersApi,
+  tasksApi,
+  taskAssignmentsApi,
+} from "@/services/api";
 
 const statusConfig = {
-  'Yet to start': { label: 'Pending', className: 'status-pending' },
-  'Ongoing': { label: 'In Progress', className: 'bg-sky/20 text-sky border-sky/30' },
-  'In Review': { label: 'In Review', className: 'bg-purple/20 text-purple-600 border-purple/30' },
-  'Completed': { label: 'Completed', className: 'status-completed' },
+  "Yet to start": { label: "Pending", className: "status-pending" },
+  Ongoing: {
+    label: "In Progress",
+    className: "bg-sky/20 text-sky border-sky/30",
+  },
+  "In Review": {
+    label: "In Review",
+    className: "bg-purple/20 text-purple-600 border-purple/30",
+  },
+  Completed: { label: "Completed", className: "status-completed" },
 };
 
 // Map frontend status to backend status
 const reverseStatusMap: Record<string, string> = {
-  'pending': 'Yet to start',
-  'in-progress': 'Ongoing',
-  'completed': 'Completed'
+  pending: "Yet to start",
+  "in-progress": "Ongoing",
+  completed: "Completed",
 };
 
 const priorityConfig = {
-  high: { label: 'High', className: 'bg-destructive/10 text-destructive' },
-  medium: { label: 'Medium', className: 'bg-sun/20 text-foreground' },
-  low: { label: 'Low', className: 'bg-muted text-muted-foreground' },
+  high: { label: "High", className: "bg-destructive/10 text-destructive" },
+  medium: { label: "Medium", className: "bg-sun/20 text-foreground" },
+  low: { label: "Low", className: "bg-muted text-muted-foreground" },
 };
 
 interface Task {
@@ -62,19 +82,22 @@ export default function ManagerTasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [workers, setWorkers] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedWorker, setSelectedWorker] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [taskAssignments, setTaskAssignments] = useState<any[]>([]);
   const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    project_id: '',
-    assignee_id: '',
-    priority: 'medium', // Backend doesn't have priority yet, keeping for UI
-    due_date: '',
-    location: '', // Backend doesn't have location yet
+    title: "",
+    description: "",
+    project_id: "",
+    assignee_id: "",
+    priority: "medium", // Backend doesn't have priority yet, keeping for UI
+    due_date: "",
+    location: "", // Backend doesn't have location yet
   });
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectReason, setRejectReason] = useState("");
   const [taskToReject, setTaskToReject] = useState<number | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -95,51 +118,66 @@ export default function ManagerTasks() {
       const workersRes = await usersApi.getManagerWorkers(managerId);
       setWorkers(workersRes.data);
 
-      // 4. Fetch Tasks for all projects
+      // 4. Fetch Tasks for all projects with assignments
       let allTasks: Task[] = [];
+      let allAssignments: any[] = [];
+
       for (const project of projectsRes.data) {
         try {
           const tasksRes = await tasksApi.getByProject(project.project_id);
-          // Enrich tasks with project name
           const projectTasks = tasksRes.data.map((t: any) => ({
             ...t,
             project_name: project.name,
-            // Fetch assignee? We need to fetch assignments per task
           }));
           allTasks = [...allTasks, ...projectTasks];
+
+          // Fetch assignments for each task
+          for (const task of projectTasks) {
+            try {
+              const assignmentsRes = await taskAssignmentsApi.getByTask(
+                task.task_id.toString(),
+              );
+              const taskAssigns = assignmentsRes.data;
+              allAssignments = [
+                ...allAssignments,
+                ...taskAssigns.map((assign: any) => ({
+                  ...assign,
+                  task_id: task.task_id,
+                })),
+              ];
+            } catch (err) {
+              // Task has no assignments yet
+            }
+          }
         } catch (err) {
-          console.error(`Failed to fetch tasks for project ${project.project_id}`, err);
+          console.error(
+            `Failed to fetch tasks for project ${project.project_id}`,
+            err,
+          );
         }
       }
 
-      // 5. Fetch Assignments for tasks (optimized to batch or just fetch when needed? 
-      // For now, let's just fetch assignments for all displayed tasks is too much.
-      // Let's rely on a simplified approach or fetch assignments individually?
-      // Better: Backend should probably return assignee in getProjectTasks or we fetch separately.
-      // Given constraints, I'll fetch assignments for the tasks.
-      const enrichedTasks = await Promise.all(allTasks.map(async (task) => {
-        try {
-          // We can't easily get assignee without a specific endpoint or n+1 calls
-          // For MVP, we'll try to get task workers if possible, or skip assignee name for now
-          // Actually, let's try to get assignments.
-          // But the user wants "assign to multiple". 
-          // We'll skip displaying assignee name in the list for now if it's too expensive,
-          // OR we do the n+1 calls since task list won't be huge.
-          const assignmentsRes = await taskAssignmentsApi.getMyAssignments(); // Wait, this gets *MY* assignments (as a worker). 
-          // We need to get workers assigned to a task. `tasksApi.getWorkers(taskId)`?
-          // Checking routes... `router.get('/:task_id/workers', ...)` exists!
-          // `tasksApi.getWorkers` not in api.ts? I checked, it's not. I'll add it later or use direct axios if needed.
-          // Actually I'll skip fetching assignees for the main list to speed up loading, 
-          // OR I can add `getWorkers` to api.ts.
-          return task;
-        } catch (e) { return task; }
-      }));
+      // Enrich tasks with assignee info
+      const enrichedTasks = allTasks.map((task) => {
+        const assignment = allAssignments.find(
+          (a) => a.task_id === task.task_id,
+        );
+        return {
+          ...task,
+          assignee_id: assignment?.worker_id,
+          assignee_name: assignment?.worker_name,
+        };
+      });
 
       setTasks(enrichedTasks);
-
+      setTaskAssignments(allAssignments);
     } catch (error) {
       console.error("Error fetching data:", error);
-      toast({ title: 'Error', description: 'Failed to load data', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to load data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -156,31 +194,41 @@ export default function ManagerTasks() {
       const taskRes = await tasksApi.create(newTask.project_id, {
         title: newTask.title,
         description: newTask.description,
-        start_date: new Date().toISOString().split('T')[0], // Default to today
-        due_date: newTask.due_date
+        start_date: new Date().toISOString().split("T")[0], // Default to today
+        due_date: newTask.due_date,
       });
       const createdTask = taskRes.data.task;
 
       // 2. Assign Worker (if selected)
       if (newTask.assignee_id) {
-        await tasksApi.assignWorker(createdTask.task_id.toString(), newTask.assignee_id);
+        await tasksApi.assignWorker(
+          createdTask.task_id.toString(),
+          newTask.assignee_id,
+        );
       }
 
       toast({
-        title: 'Task Created',
+        title: "Task Created",
         description: `${newTask.title} created successfully.`,
       });
 
       setIsDialogOpen(false);
-      setNewTask({ title: '', description: '', project_id: '', assignee_id: '', priority: 'medium', due_date: '', location: '' });
+      setNewTask({
+        title: "",
+        description: "",
+        project_id: "",
+        assignee_id: "",
+        priority: "medium",
+        due_date: "",
+        location: "",
+      });
       fetchData(); // Refresh list
-
     } catch (error: any) {
       console.error(error);
       toast({
-        title: 'Error',
-        description: error.response?.data?.message || 'Failed to create task',
-        variant: 'destructive'
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create task",
+        variant: "destructive",
       });
     }
   };
@@ -193,24 +241,45 @@ export default function ManagerTasks() {
       await tasksApi.updateStatus(taskId.toString(), backendStatus);
 
       // Optimistic update
-      setTasks(tasks.map(t => t.task_id === taskId ? { ...t, status: backendStatus } : t));
+      setTasks(
+        tasks.map((t) =>
+          t.task_id === taskId ? { ...t, status: backendStatus } : t,
+        ),
+      );
 
       toast({
-        title: 'Task Updated',
+        title: "Task Updated",
         description: `Task status updated.`,
       });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive",
+      });
     }
   };
 
   const handleApprove = async (taskId: number) => {
     try {
       await tasksApi.approve(taskId.toString());
-      setTasks(tasks.map(t => t.task_id === taskId ? { ...t, status: 'Completed', rejection_reason: null } : t));
-      toast({ title: 'Task Approved', description: 'Task marked as completed.' });
+      setTasks(
+        tasks.map((t) =>
+          t.task_id === taskId
+            ? { ...t, status: "Completed", rejection_reason: null }
+            : t,
+        ),
+      );
+      toast({
+        title: "Task Approved",
+        description: "Task marked as completed.",
+      });
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to approve task', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to approve task",
+        variant: "destructive",
+      });
     }
   };
 
@@ -220,13 +289,26 @@ export default function ManagerTasks() {
 
     try {
       await tasksApi.reject(taskToReject.toString(), rejectReason);
-      setTasks(tasks.map(t => t.task_id === taskToReject ? { ...t, status: 'Ongoing', rejection_reason: rejectReason } : t));
-      toast({ title: 'Task Rejected', description: 'Task sent back for revision.' });
+      setTasks(
+        tasks.map((t) =>
+          t.task_id === taskToReject
+            ? { ...t, status: "Ongoing", rejection_reason: rejectReason }
+            : t,
+        ),
+      );
+      toast({
+        title: "Task Rejected",
+        description: "Task sent back for revision.",
+      });
       setIsRejectDialogOpen(false);
-      setRejectReason('');
+      setRejectReason("");
       setTaskToReject(null);
     } catch (error) {
-      toast({ title: 'Error', description: 'Failed to reject task', variant: 'destructive' });
+      toast({
+        title: "Error",
+        description: "Failed to reject task",
+        variant: "destructive",
+      });
     }
   };
 
@@ -235,27 +317,50 @@ export default function ManagerTasks() {
     setIsRejectDialogOpen(true);
   };
 
-  const filteredTasks = tasks.filter(
-    (t) =>
+  const filteredTasks = tasks.filter((t) => {
+    // Search filter
+    const matchesSearch =
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.project_name && t.project_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      (t.project_name &&
+        t.project_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (t.assignee_name &&
+        t.assignee_name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    // Worker filter
+    const matchesWorker =
+      selectedWorker === "all" ||
+      !selectedWorker ||
+      t.assignee_id?.toString() === selectedWorker;
+
+    // Date filter
+    const matchesDate =
+      !selectedDate ||
+      (t.due_date && t.due_date.split("T")[0] === selectedDate);
+
+    return matchesSearch && matchesWorker && matchesDate;
+  });
 
   // Helper to map backend status to frontend tab keys
   const getTabStatus = (status: string) => {
-    if (status === 'Yet to start') return 'pending';
-    if (status === 'Ongoing' || status === 'In Review') return 'in-progress';
-    if (status === 'Completed') return 'completed';
-    return 'pending';
+    if (status === "Yet to start") return "pending";
+    if (status === "Ongoing" || status === "In Review") return "in-progress";
+    if (status === "Completed") return "completed";
+    return "pending";
   };
 
-  const pendingTasks = filteredTasks.filter((t) => getTabStatus(t.status) === 'pending');
-  const inProgressTasks = filteredTasks.filter((t) => getTabStatus(t.status) === 'in-progress');
-  const completedTasks = filteredTasks.filter((t) => getTabStatus(t.status) === 'completed');
+  const pendingTasks = filteredTasks.filter(
+    (t) => getTabStatus(t.status) === "pending",
+  );
+  const inProgressTasks = filteredTasks.filter(
+    (t) => getTabStatus(t.status) === "in-progress",
+  );
+  const completedTasks = filteredTasks.filter(
+    (t) => getTabStatus(t.status) === "completed",
+  );
 
   const TaskCard = ({ task }: { task: Task }) => {
     const statusKey = task.status as keyof typeof statusConfig;
-    const status = statusConfig[statusKey] || statusConfig['Yet to start'];
+    const status = statusConfig[statusKey] || statusConfig["Yet to start"];
 
     return (
       <Card className="nature-card animate-fade-in">
@@ -267,33 +372,56 @@ export default function ManagerTasks() {
             </Badge>
           </div>
 
-          <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {task.description}
+          </p>
 
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="w-4 h-4" />
-              <span>{task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}</span>
+              <span>
+                {task.due_date
+                  ? new Date(task.due_date).toLocaleDateString()
+                  : "No due date"}
+              </span>
             </div>
-            {/* Assignee display removed for MVP as it requires extra fetching */}
+            {task.assignee_name && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="w-4 h-4" />
+                <span>{task.assignee_name}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-border">
             <Badge className={status.className}>{status.label}</Badge>
 
-            {statusKey === 'In Review' ? (
+            {statusKey === "In Review" ? (
               <div className="flex gap-2">
-                <Button size="sm" variant="default" className="h-8 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(task.task_id)}>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-8 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => handleApprove(task.task_id)}
+                >
                   <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
                 </Button>
-                <Button size="sm" variant="destructive" className="h-8" onClick={() => openRejectDialog(task.task_id)}>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-8"
+                  onClick={() => openRejectDialog(task.task_id)}
+                >
                   <XCircle className="w-3 h-3 mr-1" /> Reject
                 </Button>
               </div>
             ) : (
-              task.status !== 'Completed' && (
+              task.status !== "Completed" && (
                 <Select
                   value={getTabStatus(task.status)}
-                  onValueChange={(value) => updateTaskStatus(task.task_id, value)}
+                  onValueChange={(value) =>
+                    updateTaskStatus(task.task_id, value)
+                  }
                 >
                   <SelectTrigger className="w-auto h-8 text-xs">
                     <SelectValue />
@@ -327,7 +455,9 @@ export default function ManagerTasks() {
           </DialogTrigger>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle className="font-display">Create New Task</DialogTitle>
+              <DialogTitle className="font-display">
+                Create New Task
+              </DialogTitle>
               <DialogDescription>
                 Add a new task and assign it to a worker.
               </DialogDescription>
@@ -338,7 +468,9 @@ export default function ManagerTasks() {
                 <Input
                   id="title"
                   value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, title: e.target.value })
+                  }
                   placeholder="e.g., Water sampling"
                   className="rounded-xl"
                   required
@@ -349,7 +481,9 @@ export default function ManagerTasks() {
                 <Textarea
                   id="description"
                   value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, description: e.target.value })
+                  }
                   placeholder="Describe the task details"
                   className="rounded-xl min-h-[80px]"
                 />
@@ -359,14 +493,19 @@ export default function ManagerTasks() {
                   <Label>Project</Label>
                   <Select
                     value={newTask.project_id}
-                    onValueChange={(value) => setNewTask({ ...newTask, project_id: value })}
+                    onValueChange={(value) =>
+                      setNewTask({ ...newTask, project_id: value })
+                    }
                   >
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent>
                       {projects.map((project) => (
-                        <SelectItem key={project.project_id} value={project.project_id.toString()}>
+                        <SelectItem
+                          key={project.project_id}
+                          value={project.project_id.toString()}
+                        >
                           {project.name}
                         </SelectItem>
                       ))}
@@ -377,14 +516,19 @@ export default function ManagerTasks() {
                   <Label>Assign To</Label>
                   <Select
                     value={newTask.assignee_id}
-                    onValueChange={(value) => setNewTask({ ...newTask, assignee_id: value })}
+                    onValueChange={(value) =>
+                      setNewTask({ ...newTask, assignee_id: value })
+                    }
                   >
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select worker" />
                     </SelectTrigger>
                     <SelectContent>
                       {workers.map((worker) => (
-                        <SelectItem key={worker.user_id} value={worker.user_id.toString()}>
+                        <SelectItem
+                          key={worker.user_id}
+                          value={worker.user_id.toString()}
+                        >
                           {worker.name}
                         </SelectItem>
                       ))}
@@ -398,15 +542,25 @@ export default function ManagerTasks() {
                   id="dueDate"
                   type="date"
                   value={newTask.due_date}
-                  onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, due_date: e.target.value })
+                  }
                   className="rounded-xl"
                 />
               </div>
               <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 rounded-xl"
+                  onClick={() => setIsDialogOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1 rounded-xl gradient-forest text-primary-foreground">
+                <Button
+                  type="submit"
+                  className="flex-1 rounded-xl gradient-forest text-primary-foreground"
+                >
                   Create Task
                 </Button>
               </div>
@@ -423,7 +577,8 @@ export default function ManagerTasks() {
               Reject Task
             </DialogTitle>
             <DialogDescription>
-              Provide a reason for rejecting this task. The worker will be notified to make revisions.
+              Provide a reason for rejecting this task. The worker will be
+              notified to make revisions.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleReject} className="space-y-4 mt-2">
@@ -435,33 +590,83 @@ export default function ManagerTasks() {
               required
             />
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsRejectDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" variant="destructive">Reject Task</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsRejectDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive">
+                Reject Task
+              </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
-          placeholder="Search tasks..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 rounded-xl"
-        />
+      {/* Filters */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 rounded-xl"
+            />
+          </div>
+
+          {/* Worker Filter */}
+          <Select value={selectedWorker} onValueChange={setSelectedWorker}>
+            <SelectTrigger className="rounded-xl">
+              <SelectValue placeholder="All workers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="cursor-pointer">
+                All workers
+              </SelectItem>
+              {workers.map((worker) => (
+                <SelectItem
+                  key={worker.user_id}
+                  value={worker.user_id.toString()}
+                >
+                  {worker.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Date Filter */}
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="rounded-xl"
+            placeholder="Filter by due date"
+          />
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading tasks...</div>
+        <div className="text-center py-12 text-muted-foreground">
+          Loading tasks...
+        </div>
       ) : (
         <Tabs defaultValue="all" className="w-full">
           <TabsList className="w-full max-w-md grid grid-cols-4 mb-6">
             <TabsTrigger value="all">All ({filteredTasks.length})</TabsTrigger>
-            <TabsTrigger value="pending">Pending ({pendingTasks.length})</TabsTrigger>
-            <TabsTrigger value="in-progress">Active ({inProgressTasks.length})</TabsTrigger>
-            <TabsTrigger value="completed">Done ({completedTasks.length})</TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending ({pendingTasks.length})
+            </TabsTrigger>
+            <TabsTrigger value="in-progress">
+              Active ({inProgressTasks.length})
+            </TabsTrigger>
+            <TabsTrigger value="completed">
+              Done ({completedTasks.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">

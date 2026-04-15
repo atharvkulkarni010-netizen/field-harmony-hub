@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { attendanceApi } from '@/services/api';
+import { attendanceApi, projectsApi } from '@/services/api';
 import { getAddressFromCoordinates } from '@/services/geocoding';
 import { Calendar, Clock, MapPin, User, Search, Filter, ShieldCheck, ShieldAlert, List, Map as MapIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import {
@@ -37,6 +37,7 @@ const checkOutIcon = createCustomIcon('#ef4444'); // red-500
 export default function ManagerAttendance() {
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
     const [attendanceData, setAttendanceData] = useState<any[]>([]);
+    const [projects, setProjects] = useState<any[]>([]);
     const [addresses, setAddresses] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -63,6 +64,18 @@ export default function ManagerAttendance() {
     useEffect(() => {
         fetchAttendance();
     }, [date]);
+
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const res = await projectsApi.getAll();
+                setProjects(res.data);
+            } catch (error) {
+                console.error('Error fetching projects:', error);
+            }
+        };
+        fetchProjects();
+    }, []);
 
     // Fetch addresses for records with coordinates
     useEffect(() => {
@@ -270,6 +283,21 @@ export default function ManagerAttendance() {
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                 />
+                                {projects.filter(p => p.geofence_latitude && p.geofence_longitude).map(project => (
+                                    <Circle
+                                        key={`project-${project.project_id}`}
+                                        center={[Number(project.geofence_latitude), Number(project.geofence_longitude)]}
+                                        radius={project.geofence_radius || 500}
+                                        pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.2 }}
+                                    >
+                                        <Popup>
+                                            <div className="text-sm">
+                                                <strong>Project: {project.name}</strong><br />
+                                                Radius: {project.geofence_radius || 500}m
+                                            </div>
+                                        </Popup>
+                                    </Circle>
+                                ))}
                                 {filteredData.map(record => (
                                     <React.Fragment key={record.user_id}>
                                         {record.check_in_latitude && record.check_in_longitude && (

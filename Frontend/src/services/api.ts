@@ -1,26 +1,33 @@
-import axios from 'axios';
+import axios from "axios";
 
-// Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+
+export const getUploadUrl = (path: string) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
 
 // Create axios instance with interceptors
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Request interceptor to add JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('auth_token');
+    const token = sessionStorage.getItem("auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor for error handling
@@ -29,140 +36,165 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Don't redirect if the error is from the login endpoint itself
-      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      const isLoginRequest = error.config?.url?.includes("/auth/login");
       if (!isLoginRequest) {
         // Token expired or invalid
-        sessionStorage.removeItem('auth_token');
-        sessionStorage.removeItem('auth_user');
-        window.location.href = '/login';
+        sessionStorage.removeItem("auth_token");
+        sessionStorage.removeItem("auth_user");
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // API endpoints (to be connected to backend later)
 // API endpoints
 export const authApi = {
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
-  logout: () => api.post('/auth/logout'),
-  updatePassword: (newPassword: string) => api.put('/auth/change-password', { newPassword }),
-  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+    api.post("/auth/login", { email, password }),
+  logout: () => api.post("/auth/logout"),
+  updatePassword: (newPassword: string) =>
+    api.put("/auth/change-password", { newPassword }),
+  forgotPassword: (email: string) =>
+    api.post("/auth/forgot-password", { email }),
   resetPassword: (email: string, otp: string, newPassword: string) =>
-    api.post('/auth/reset-password', { email, otp, newPassword }),
+    api.post("/auth/reset-password", { email, otp, newPassword }),
   // refreshToken: () => api.post('/auth/refresh'), // Not implemented in backend yet
 };
 
 export const usersApi = {
-  getManagers: () => api.get('/users/managers'),
-  getWorkers: () => api.get('/users/workers'),
-  register: (data: { name: string; email: string; role: 'ADMIN' | 'MANAGER' | 'WORKER'; manager_id?: string | null; skills?: string[] }) =>
-    api.post('/users/register', data),
+  getManagers: () => api.get("/users/managers"),
+  getWorkers: () => api.get("/users/workers"),
+  register: (data: {
+    name: string;
+    email: string;
+    role: "ADMIN" | "MANAGER" | "WORKER";
+    manager_id?: string | null;
+    skills?: string[];
+  }) => api.post("/users/register", data),
   deleteUser: (userId: string) => api.delete(`/users/${userId}`),
-  getProfile: () => api.get('/users/profile'),
-  getManagerWorkers: (managerId: string) => api.get(`/users/manager/${managerId}/workers`),
+  getProfile: () => api.get("/users/profile"),
+  getManagerWorkers: (managerId: string) =>
+    api.get(`/users/manager/${managerId}/workers`),
   update: (id: string, data: any) => api.put(`/users/${id}`, data),
 };
 
 export const skillsApi = {
-  getAll: () => api.get('/skills'),
-  create: (name: string) => api.post('/skills', { name }),
+  getAll: () => api.get("/skills"),
+  create: (name: string) => api.post("/skills", { name }),
 };
 
 export const projectsApi = {
-  getAll: () => api.get('/projects'),
+  getAll: () => api.get("/projects"),
   getById: (id: string) => api.get(`/projects/${id}`),
-  create: (data: any) => api.post('/projects', data),
+  create: (data: any) => api.post("/projects", data),
   update: (id: string, data: any) => api.put(`/projects/${id}`, data),
-  updateStatus: (id: string, status: string) => api.patch(`/projects/${id}/status`, { status }),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/projects/${id}/status`, { status }),
   getDetails: (id: string) => api.get(`/projects/${id}`),
+  delete: (id: string | number) => api.delete(`/projects/${id}`),
   // assign: (projectId: string, managerId: string) => api.put(`/projects/${projectId}`, { assigned_manager_id: managerId }), // Assignment handled via update
 };
 
 export const tasksApi = {
-  getAll: () => api.get('/tasks'), // Admin only? Or verify backend route
+  getAll: () => api.get("/tasks"), // Admin only? Or verify backend route
   getByProject: (projectId: string) => api.get(`/tasks/project/${projectId}`),
-  create: (projectId: string, data: any) => api.post(`/tasks/project/${projectId}`, data),
+  create: (projectId: string, data: any) =>
+    api.post(`/tasks/project/${projectId}`, data),
   update: (id: string, data: any) => api.put(`/tasks/${id}`, data),
-  updateStatus: (id: string, status: string) => api.patch(`/tasks/${id}/status`, { status }),
+  updateStatus: (id: string, status: string) =>
+    api.patch(`/tasks/${id}/status`, { status }),
   assignWorker: (taskId: string, workerId: string) =>
-    api.post('/task-assignments', { task_id: taskId, worker_id: workerId }),
+    api.post("/task-assignments", { task_id: taskId, worker_id: workerId }),
   submit: (taskId: string) => api.post(`/tasks/${taskId}/submit`),
   approve: (taskId: string) => api.post(`/tasks/${taskId}/approve`),
-  reject: (taskId: string, reason: string) => api.post(`/tasks/${taskId}/reject`, { reason }),
+  reject: (taskId: string, reason: string) =>
+    api.post(`/tasks/${taskId}/reject`, { reason }),
 };
 
 export const taskAssignmentsApi = {
-  getMyAssignments: () => api.get('/task-assignments/my-assignments'),
+  getMyAssignments: () => api.get("/task-assignments/my-assignments"),
+  getByTask: (taskId: string) => api.get(`/task-assignments/task/${taskId}`),
+  getByWorker: (workerId: string) =>
+    api.get(`/task-assignments/worker/${workerId}`),
 };
 
 export const attendanceApi = {
   checkIn: (location: { lat: number; lng: number }) => {
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
-    const check_in_time = now.toLocaleTimeString('en-US', { hour12: false });
-    return api.post('/attendance/check-in', {
+    const date = now.toISOString().split("T")[0];
+    const check_in_time = now.toLocaleTimeString("en-US", { hour12: false });
+    return api.post("/attendance/check-in", {
       date,
       check_in_time,
       check_in_latitude: location.lat,
-      check_in_longitude: location.lng
+      check_in_longitude: location.lng,
     });
   },
   checkOut: (attendanceId: string, location: { lat: number; lng: number }) => {
-    const check_out_time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const check_out_time = new Date().toLocaleTimeString("en-US", {
+      hour12: false,
+    });
     return api.patch(`/attendance/${attendanceId}/check-out`, {
       check_out_time,
       check_out_latitude: location.lat,
-      check_out_longitude: location.lng
+      check_out_longitude: location.lng,
     });
   },
   getHistory: (userId: string) => api.get(`/attendance/user/${userId}`),
-  getToday: () => api.get('/attendance/today/my-attendance'),
-  getTeamAttendance: (date?: string) => api.get('/attendance/manager/team-attendance', { params: { date } }),
-  getAllAttendance: (date?: string) => api.get('/attendance/admin/all-attendance', { params: { date } }),
+  getToday: () => api.get("/attendance/today/my-attendance"),
+  getTeamAttendance: (date?: string) =>
+    api.get("/attendance/manager/team-attendance", { params: { date } }),
+  getAllAttendance: (date?: string) =>
+    api.get("/attendance/admin/all-attendance", { params: { date } }),
   // getByWorker: (workerId: string) => api.get(`/attendance/user/${workerId}`), // Same as getHistory
 };
 
 export const leavesApi = {
-  apply: (data: any) => api.post('/leaves', data),
+  apply: (data: any) => api.post("/leaves", data),
   getMyLeaves: (workerId: string) => api.get(`/leaves/worker/${workerId}`),
-  getPending: () => api.get('/leaves/pending/all'),
-  getTeamLeaves: () => api.get('/leaves/manager/team-leaves'),
+  getPending: () => api.get("/leaves/pending/all"),
+  getTeamLeaves: () => api.get("/leaves/manager/team-leaves"),
   approve: (id: string) => api.patch(`/leaves/${id}/approve`),
   reject: (id: string) => api.patch(`/leaves/${id}/reject`),
 };
 
 export const reportsApi = {
   submit: (data: FormData) =>
-    api.post('/daily-reports', data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    api.post("/daily-reports", data, {
+      headers: { "Content-Type": "multipart/form-data" },
     }),
   getTaskReports: (taskId: string) => api.get(`/daily-reports/task/${taskId}`),
-  getMyReports: () => api.get('/daily-reports/worker/me'), // This endpoint needs adjustment in backend if 'me' is not handled, but usually handled by /worker/:id with user.id
-  getByWorker: (workerId: string) => api.get(`/daily-reports/worker/${workerId}`),
-  getTeamReports: (date: string) => api.get('/daily-reports/manager/team-reports', { params: { date } }),
+  getMyReports: () => api.get("/daily-reports/worker/me"), // This endpoint needs adjustment in backend if 'me' is not handled, but usually handled by /worker/:id with user.id
+  getByWorker: (workerId: string) =>
+    api.get(`/daily-reports/worker/${workerId}`),
+  getTeamReports: (date?: string) => {
+    const params: any = {};
+    if (date) params.date = date;
+    return api.get("/daily-reports/manager/team-reports", { params });
+  },
 };
 
 export const leaveApi = {
-  apply: (data: any) => api.post('/leaves', data),
-  getAll: () => api.get('/leaves/pending/all'), // Manager/Admin view pending
+  apply: (data: any) => api.post("/leaves", data),
+  getAll: () => api.get("/leaves/pending/all"), // Manager/Admin view pending
   approve: (id: string) => api.patch(`/leaves/${id}/approve`),
   reject: (id: string) => api.patch(`/leaves/${id}/reject`),
   getHistory: (workerId: string) => api.get(`/leaves/worker/${workerId}`),
 };
 
 export const analyticsApi = {
-  getDashboardStats: () => api.get('/analytics/stats'),
-  getAttendanceTrends: () => api.get('/analytics/attendance'),
-  getProjectStatus: () => api.get('/analytics/projects'),
-  getRecentActivity: () => api.get('/analytics/activity'),
-  getTasksByProject: () => api.get('/analytics/tasks-by-project'),
-  getMonthlyAttendance: () => api.get('/analytics/monthly-attendance'),
-  getManagerStats: () => api.get('/analytics/manager-stats'),
-  getKeyMetrics: () => api.get('/analytics/key-metrics'),
-  getWeeklyProgress: () => api.get('/analytics/weekly-progress'),
-  getPublicStats: () => api.get('/analytics/public-stats'), // Public endpoint
+  getDashboardStats: () => api.get("/analytics/stats"),
+  getAttendanceTrends: () => api.get("/analytics/attendance"),
+  getProjectStatus: () => api.get("/analytics/projects"),
+  getRecentActivity: () => api.get("/analytics/activity"),
+  getTasksByProject: () => api.get("/analytics/tasks-by-project"),
+  getMonthlyAttendance: () => api.get("/analytics/monthly-attendance"),
+  getManagerStats: () => api.get("/analytics/manager-stats"),
+  getKeyMetrics: () => api.get("/analytics/key-metrics"),
+  getWeeklyProgress: () => api.get("/analytics/weekly-progress"),
+  getPublicStats: () => api.get("/analytics/public-stats"), // Public endpoint
 };
 
 export default api;
