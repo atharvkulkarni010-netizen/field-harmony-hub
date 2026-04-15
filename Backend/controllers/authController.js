@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import dns from 'dns/promises';
+import { generateRandomPassword } from '../utils/passwordUtils.js';
 
 const secret = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -270,6 +271,13 @@ export const verifyEmail = async (req, res) => {
     }
 
     await userService.verifyUser(user.user_id);
+
+    if (user.role === 'WORKER' || user.role === 'MANAGER') {
+      const randomPassword = generateRandomPassword();
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      await userService.updateUserPassword(user.user_id, hashedPassword);
+      await emailService.sendCredentialsEmail(user.email, user.name, randomPassword, user.role);
+    }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/login?verified=true`);

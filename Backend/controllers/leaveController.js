@@ -87,6 +87,11 @@ export const approveLeave = async (req, res) => {
       return res.status(404).json({ message: 'Leave request not found' });
     }
 
+    // Prevent self-approval vulnerability
+    if (leave.user_id === user.user_id) {
+      return res.status(403).json({ message: 'You cannot approve your own leave request' });
+    }
+
     // Check permissions
     if (user.role === 'MANAGER') {
       const worker = await userService.findUserById(leave.user_id);
@@ -111,6 +116,11 @@ export const rejectLeave = async (req, res) => {
     const leave = await leaveService.findLeaveById(leave_id);
     if (!leave) {
       return res.status(404).json({ message: 'Leave request not found' });
+    }
+
+    // Prevent self-rejection vulnerability
+    if (leave.user_id === user.user_id) {
+      return res.status(403).json({ message: 'You cannot reject your own leave request' });
     }
 
     // Check permissions
