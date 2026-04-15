@@ -1,5 +1,5 @@
 import * as userService from '../services/userService.js';
-import { sendWelcomeEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendAdminVerificationEmail } from '../services/emailService.js';
 import { generateRandomPassword } from '../utils/passwordUtils.js';
 import crypto from 'crypto';
 
@@ -49,12 +49,12 @@ export const registerUser = async (req, res) => {
     // Create User with Verification Token (is_verified = false)
     const user = await userService.createUserWithVerification(name, email, randomPassword, role, verificationToken, manager_id, req.body.skills);
 
-    // Send welcome email with credentials AND verification link
-    await sendWelcomeEmail(email, name, randomPassword, role, verificationToken);
+    // Send admin verification email instead of direct user verification
+    await sendAdminVerificationEmail(req.user.email, name, role, verificationToken);
 
     // Return the user info without the password field
     res.status(201).json({
-      message: 'User created successfully. A verification email has been sent.',
+      message: 'User created successfully. An authorization email has been sent to your admin email address.',
       user: {
         user_id: user.user_id,
         name: user.name,
@@ -63,8 +63,7 @@ export const registerUser = async (req, res) => {
         manager_id: user.manager_id,
         created_at: user.created_at,
         skills: user.skills
-      },
-      generatedPassword: randomPassword
+      }
     });
   } catch (error) {
     console.error(error);

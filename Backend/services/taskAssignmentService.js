@@ -29,10 +29,12 @@ export const findAssignmentById = async (assignment_id) => {
 export const findAssignmentsByTask = async (task_id) => {
   const connection = await pool.getConnection();
   try {
-    const [rows] = await connection.query(
-      'SELECT * FROM task_assignment WHERE task_id = ?',
-      [task_id]
-    );
+    const [rows] = await connection.query(`
+      SELECT ta.*, u.name as worker_name 
+      FROM task_assignment ta
+      LEFT JOIN user u ON ta.worker_id = u.user_id
+      WHERE ta.task_id = ?
+    `, [task_id]);
     return rows;
   } finally {
     connection.release();

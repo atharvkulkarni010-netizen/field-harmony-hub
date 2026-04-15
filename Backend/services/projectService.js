@@ -164,7 +164,28 @@ export const updateProjectStatus = async (project_id, status) => {
 export const deleteProject = async (project_id) => {
   const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+
+    // 1. Fetch related tasks to delete their downstream dependencies
+    const [tasks] = await connection.query('SELECT task_id FROM task WHERE project_id = ?', [project_id]);
+    const taskIds = tasks.map(t => t.task_id);
+
+    if (taskIds.length > 0) {
+      await connection.query('DELETE FROM task_assignment WHERE task_id IN (?)', [taskIds]);
+      await connection.query('DELETE FROM report_task WHERE task_id IN (?)', [taskIds]);
+    }
+
+    // 2. Cascade delete core project dependencies
+    await connection.query('DELETE FROM task WHERE project_id = ?', [project_id]);
+    await connection.query('DELETE FROM manager_project_report WHERE project_id = ?', [project_id]);
+
+    // 3. Wipe the primary project record
     await connection.query('DELETE FROM project WHERE project_id = ?', [project_id]);
+    
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
   } finally {
     connection.release();
   }

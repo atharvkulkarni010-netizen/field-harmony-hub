@@ -1,27 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { FileText, Upload, Image, CheckCircle2, X } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { taskAssignmentsApi, reportsApi } from '@/services/api';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect } from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { FileText, Upload, Image, CheckCircle2, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { taskAssignmentsApi, reportsApi } from "@/services/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface AssignedTask {
   assignment_id: number;
   task_id: number;
   title: string;
   project_name: string;
+  status: string;
 }
 
 export default function SubmitReport() {
   const { user } = useAuth();
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState("");
   const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [images, setImages] = useState<File[]>([]);
@@ -48,13 +60,16 @@ export default function SubmitReport() {
   const fetchAssignedTasks = async () => {
     try {
       const response = await taskAssignmentsApi.getMyAssignments();
-      setAssignedTasks(response.data);
+      const ongoingTasks = response.data.filter(
+        (task: AssignedTask) => task.status === "Ongoing",
+      );
+      setAssignedTasks(ongoingTasks);
     } catch (error) {
-      console.error('Error fetching assigned tasks:', error);
+      console.error("Error fetching assigned tasks:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load assigned tasks.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load assigned tasks.",
+        variant: "destructive",
       });
     }
   };
@@ -79,19 +94,19 @@ export default function SubmitReport() {
   const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files) {
       processFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const processFiles = (files: File[]) => {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length !== files.length) {
       toast({
-        title: 'Invalid file type',
-        description: 'Only image files are allowed.',
-        variant: 'destructive',
+        title: "Invalid file type",
+        description: "Only image files are allowed.",
+        variant: "destructive",
       });
     }
     const newImages = imageFiles.slice(0, 5 - images.length);
@@ -104,18 +119,18 @@ export default function SubmitReport() {
 
   const toggleTask = (taskId: string) => {
     setSelectedTasks((prev) =>
-      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+      prev.includes(taskId)
+        ? prev.filter((id) => id !== taskId)
+        : [...prev, taskId],
     );
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     if (!description.trim()) {
       toast({
-        title: 'Description Required',
-        description: 'Please provide a description of your work.',
-        variant: 'destructive',
+        title: "Description Required",
+        description: "Please provide a description of your work.",
+        variant: "destructive",
       });
       return;
     }
@@ -126,31 +141,31 @@ export default function SubmitReport() {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('description', description);
-      formData.append('report_date', new Date().toISOString().split('T')[0]);
-      
+      formData.append("description", description);
+      formData.append("report_date", new Date().toISOString().split("T")[0]);
+
       // Append task IDs as JSON string or individual fields depending on backend expectation
       // Backend controller parses 'task_ids'
-      formData.append('task_ids', JSON.stringify(selectedTasks));
+      formData.append("task_ids", JSON.stringify(selectedTasks));
 
       images.forEach((image) => {
-        formData.append('images', image);
+        formData.append("images", image);
       });
 
       await reportsApi.submit(formData);
 
       toast({
-        title: 'Report Submitted',
-        description: 'Your daily report has been submitted successfully.',
+        title: "Report Submitted",
+        description: "Your daily report has been submitted successfully.",
       });
 
-      navigate('/worker');
+      navigate("/worker");
     } catch (error) {
-      console.error('Error submitting report:', error);
+      console.error("Error submitting report:", error);
       toast({
-        title: 'Submission Failed',
-        description: 'Failed to submit report. Please try again.',
-        variant: 'destructive',
+        title: "Submission Failed",
+        description: "Failed to submit report. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -164,7 +179,7 @@ export default function SubmitReport() {
         description="Document your work for today"
       />
 
-      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
+      <form className="max-w-2xl mx-auto space-y-6">
         {/* Related Tasks */}
         <Card className="nature-card">
           <CardHeader>
@@ -174,29 +189,33 @@ export default function SubmitReport() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-             {assignedTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tasks assigned.</p>
-             ) : (
-                assignedTasks.map((task) => (
-                  <label
-                    key={task.task_id}
-                    className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-colors ${
-                      selectedTasks.includes(task.task_id.toString())
-                        ? 'bg-primary/10 border border-primary/30'
-                        : 'bg-muted/30 hover:bg-muted/50'
-                    }`}
-                  >
-                    <Checkbox
-                      checked={selectedTasks.includes(task.task_id.toString())}
-                      onCheckedChange={() => toggleTask(task.task_id.toString())}
-                    />
-                    <div>
-                      <p className="font-medium">{task.title}</p>
-                      <p className="text-sm text-muted-foreground">{task.project_name}</p>
-                    </div>
-                  </label>
-                ))
-             )}
+            {assignedTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No tasks assigned.
+              </p>
+            ) : (
+              assignedTasks.map((task) => (
+                <label
+                  key={task.task_id}
+                  className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-colors ${
+                    selectedTasks.includes(task.task_id.toString())
+                      ? "bg-primary/10 border border-primary/30"
+                      : "bg-muted/30 hover:bg-muted/50"
+                  }`}
+                >
+                  <Checkbox
+                    checked={selectedTasks.includes(task.task_id.toString())}
+                    onCheckedChange={() => toggleTask(task.task_id.toString())}
+                  />
+                  <div>
+                    <p className="font-medium">{task.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {task.project_name}
+                    </p>
+                  </div>
+                </label>
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -236,15 +255,19 @@ export default function SubmitReport() {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-                images.length >= 5 
-                  ? 'opacity-50 cursor-not-allowed border-primary/30' 
-                  : isDragging 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-primary/30 hover:bg-muted/50'
+                images.length >= 5
+                  ? "opacity-50 cursor-not-allowed border-primary/30"
+                  : isDragging
+                    ? "border-primary bg-primary/10"
+                    : "border-primary/30 hover:bg-muted/50"
               }`}
             >
-              <Upload className={`w-10 h-10 mb-3 transition-colors ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-              <span className="text-sm font-medium">Click or Drag & Drop images here</span>
+              <Upload
+                className={`w-10 h-10 mb-3 transition-colors ${isDragging ? "text-primary" : "text-muted-foreground"}`}
+              />
+              <span className="text-sm font-medium">
+                Click or Drag & Drop images here
+              </span>
               <span className="text-xs text-muted-foreground mt-1">
                 PNG, JPG up to 10MB each
               </span>
@@ -262,7 +285,10 @@ export default function SubmitReport() {
             {images.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {images.map((image, index) => (
-                  <div key={index} className="relative aspect-square rounded-xl overflow-hidden bg-muted">
+                  <div
+                    key={index}
+                    className="relative aspect-square rounded-xl overflow-hidden bg-muted"
+                  >
                     <img
                       src={previewUrls[index]}
                       alt={`Upload ${index + 1}`}
@@ -283,20 +309,40 @@ export default function SubmitReport() {
         </Card>
 
         {/* Submit Button */}
-        <Button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full h-14 text-lg rounded-xl gradient-forest text-primary-foreground font-semibold"
-        >
-          {isSubmitting ? (
-            <div className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-          ) : (
-            <>
-              <FileText className="w-5 h-5 mr-2" />
-              Submit Report
-            </>
-          )}
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              disabled={isSubmitting}
+              className="w-full h-14 text-lg rounded-xl gradient-forest text-primary-foreground font-semibold"
+            >
+              {isSubmitting ? (
+                <div className="w-6 h-6 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              ) : (
+                <>
+                  <FileText className="w-5 h-5 mr-2" />
+                  Submit Report
+                </>
+              )}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Submit Daily Report?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to submit your daily report? Once
+                submitted, you cannot make changes to this report. Please ensure
+                all information is accurate and complete.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleSubmit}>
+                Submit Report
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </form>
     </div>
   );

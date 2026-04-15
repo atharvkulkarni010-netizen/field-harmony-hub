@@ -1,12 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardList, Calendar, MapPin, CheckCircle2, Clock, Play, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { taskAssignmentsApi, tasksApi } from '@/services/api';
+import React, { useState, useEffect } from "react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  ClipboardList,
+  Calendar,
+  MapPin,
+  CheckCircle2,
+  Clock,
+  Play,
+  AlertTriangle,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { taskAssignmentsApi, tasksApi } from "@/services/api";
 
 interface Task {
   task_id: number;
@@ -14,17 +33,33 @@ interface Task {
   description: string;
   project_name: string;
   due_date: string;
-  status: 'Yet to start' | 'Ongoing' | 'In Review' | 'Completed';
+  status: "Yet to start" | "Ongoing" | "In Review" | "Completed";
   location?: string;
   assignment_id: number;
   rejection_reason?: string;
 }
 
 const statusConfig = {
-  'Yet to start': { label: 'Pending', className: 'status-pending', icon: Clock },
-  'Ongoing': { label: 'In Progress', className: 'bg-sky/20 text-sky border-sky/30', icon: Play },
-  'In Review': { label: 'In Review', className: 'bg-orange-100 text-orange-600 border-orange-200', icon: Clock },
-  'Completed': { label: 'Completed', className: 'status-completed', icon: CheckCircle2 },
+  "Yet to start": {
+    label: "Pending",
+    className: "status-pending",
+    icon: Clock,
+  },
+  Ongoing: {
+    label: "In Progress",
+    className: "bg-sky/20 text-sky border-sky/30",
+    icon: Play,
+  },
+  "In Review": {
+    label: "In Review",
+    className: "bg-orange-100 text-orange-600 border-orange-200",
+    icon: Clock,
+  },
+  Completed: {
+    label: "Completed",
+    className: "status-completed",
+    icon: CheckCircle2,
+  },
 };
 
 export default function WorkerTasks() {
@@ -41,35 +76,35 @@ export default function WorkerTasks() {
       const response = await taskAssignmentsApi.getMyAssignments();
       setTasks(response.data);
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error("Error fetching tasks:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load tasks.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load tasks.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const pendingTasks = tasks.filter((t) => t.status === 'Yet to start');
-  const inProgressTasks = tasks.filter((t) => t.status === 'Ongoing');
-  const completedTasks = tasks.filter((t) => t.status === 'Completed');
+  const pendingTasks = tasks.filter((t) => t.status === "Yet to start");
+  const inProgressTasks = tasks.filter((t) => t.status === "Ongoing");
+  const completedTasks = tasks.filter((t) => t.status === "Completed");
 
   const handleStartTask = async (taskId: number) => {
     try {
-      await tasksApi.updateStatus(taskId.toString(), 'Ongoing');
+      await tasksApi.updateStatus(taskId.toString(), "Ongoing");
       toast({
-        title: 'Task Started',
-        description: 'The task has been marked as in progress.',
+        title: "Task Started",
+        description: "The task has been marked as in progress.",
       });
       fetchTasks(); // Refresh list
     } catch (error) {
-      console.error('Error starting task:', error);
+      console.error("Error starting task:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to update task status.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update task status.",
+        variant: "destructive",
       });
     }
   };
@@ -78,22 +113,22 @@ export default function WorkerTasks() {
     try {
       await tasksApi.submit(taskId.toString());
       toast({
-        title: 'Task Submitted',
-        description: 'Task submitted for manager review.',
+        title: "Task Submitted",
+        description: "Task submitted for manager review.",
       });
       fetchTasks(); // Refresh list
     } catch (error) {
-      console.error('Error submitting task:', error);
+      console.error("Error submitting task:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to submit task.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to submit task.",
+        variant: "destructive",
       });
     }
   };
 
   const TaskCard = ({ task }: { task: Task }) => {
-    const status = statusConfig[task.status] || statusConfig['Yet to start'];
+    const status = statusConfig[task.status] || statusConfig["Yet to start"];
     const StatusIcon = status.icon;
 
     return (
@@ -102,16 +137,19 @@ export default function WorkerTasks() {
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <h4 className="font-semibold text-lg">{task.title}</h4>
-              <p className="text-sm text-muted-foreground">{task.project_name}</p>
+              <p className="text-sm text-muted-foreground">
+                {task.project_name}
+              </p>
             </div>
             {/* Priority is not in backend yet, handled via logic or omitted */}
           </div>
 
-          {task.rejection_reason && task.status === 'Ongoing' && (
+          {task.rejection_reason && task.status === "Ongoing" && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-start gap-2 text-sm text-destructive">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
-                <span className="font-semibold">Revision Requested:</span> {task.rejection_reason}
+                <span className="font-semibold">Revision Requested:</span>{" "}
+                {task.rejection_reason}
               </div>
             </div>
           )}
@@ -137,28 +175,77 @@ export default function WorkerTasks() {
               {status.label}
             </Badge>
             <div className="flex gap-2">
-              {task.status === 'Yet to start' && (
-                <Button
-                  size="sm"
-                  onClick={() => handleStartTask(task.task_id)}
-                  className="rounded-lg gradient-forest text-primary-foreground"
-                >
-                  <Play className="w-3 h-3 mr-1" />
-                  Start
-                </Button>
+              {task.status === "Yet to start" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="rounded-lg gradient-forest text-primary-foreground"
+                    >
+                      <Play className="w-3 h-3 mr-1" />
+                      Start
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Start Working on Task?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to start working on "{task.title}
+                        "? This will mark the task as in progress and you will
+                        be responsible for completing it by the due date.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleStartTask(task.task_id)}
+                      >
+                        Start Task
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
-              {task.status === 'Ongoing' && (
-                <Button
-                  size="sm"
-                  onClick={() => handleSubmitTask(task.task_id)}
-                  className="rounded-lg gradient-forest text-primary-foreground"
-                >
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
-                  Submit for Review
-                </Button>
+              {task.status === "Ongoing" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="rounded-lg gradient-forest text-primary-foreground"
+                    >
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Submit for Review
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Submit Task for Review?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to submit "{task.title}" for
+                        review? Once submitted, you cannot make changes unless
+                        it is returned for revision by the manager.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleSubmitTask(task.task_id)}
+                      >
+                        Submit
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
-              {task.status === 'In Review' && (
-                <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+              {task.status === "In Review" && (
+                <Badge
+                  variant="secondary"
+                  className="bg-yellow-100 text-yellow-800 border-yellow-200"
+                >
                   <Clock className="w-3 h-3 mr-1" />
                   Waiting for Approval
                 </Badge>
@@ -184,9 +271,15 @@ export default function WorkerTasks() {
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="w-full max-w-md grid grid-cols-4 mb-6">
           <TabsTrigger value="all">All ({tasks.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pendingTasks.length})</TabsTrigger>
-          <TabsTrigger value="in-progress">Active ({inProgressTasks.length})</TabsTrigger>
-          <TabsTrigger value="completed">Done ({completedTasks.length})</TabsTrigger>
+          <TabsTrigger value="pending">
+            Pending ({pendingTasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="in-progress">
+            Active ({inProgressTasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="completed">
+            Done ({completedTasks.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
@@ -194,7 +287,11 @@ export default function WorkerTasks() {
             {tasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-            {tasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No tasks found.</p>}
+            {tasks.length === 0 && (
+              <p className="col-span-2 text-center text-muted-foreground">
+                No tasks found.
+              </p>
+            )}
           </div>
         </TabsContent>
 
@@ -203,7 +300,11 @@ export default function WorkerTasks() {
             {pendingTasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-            {pendingTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No pending tasks.</p>}
+            {pendingTasks.length === 0 && (
+              <p className="col-span-2 text-center text-muted-foreground">
+                No pending tasks.
+              </p>
+            )}
           </div>
         </TabsContent>
 
@@ -212,7 +313,11 @@ export default function WorkerTasks() {
             {inProgressTasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-            {inProgressTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No active tasks.</p>}
+            {inProgressTasks.length === 0 && (
+              <p className="col-span-2 text-center text-muted-foreground">
+                No active tasks.
+              </p>
+            )}
           </div>
         </TabsContent>
 
@@ -221,7 +326,11 @@ export default function WorkerTasks() {
             {completedTasks.map((task) => (
               <TaskCard key={task.task_id} task={task} />
             ))}
-            {completedTasks.length === 0 && <p className="col-span-2 text-center text-muted-foreground">No completed tasks.</p>}
+            {completedTasks.length === 0 && (
+              <p className="col-span-2 text-center text-muted-foreground">
+                No completed tasks.
+              </p>
+            )}
           </div>
         </TabsContent>
       </Tabs>

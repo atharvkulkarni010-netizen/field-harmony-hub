@@ -12,15 +12,20 @@ export const checkIn = async (req, res) => {
       return res.status(400).json({ message: 'Already checked in for this date' });
     }
 
+    if (!check_in_latitude || !check_in_longitude) {
+      return res.status(400).json({ message: 'Location coordinates are required to check in.' });
+    }
+
     // Geo-fence validation
-    let geofenceResult = { status: null, nearest_project: null, distance: null };
-    if (check_in_latitude && check_in_longitude) {
-      const projects = await attendanceService.findWorkerProjects(user.user_id);
-      geofenceResult = checkWorkerAgainstProjects(
-        Number(check_in_latitude),
-        Number(check_in_longitude),
-        projects
-      );
+    const projects = await attendanceService.findWorkerProjects(user.user_id);
+    const geofenceResult = checkWorkerAgainstProjects(
+      Number(check_in_latitude),
+      Number(check_in_longitude),
+      projects
+    );
+
+    if (geofenceResult.status === 'OUTSIDE') {
+      return res.status(403).json({ message: 'You must be inside an assigned project\'s geofence to check in.' });
     }
 
     const attendance = await attendanceService.createAttendance(
@@ -61,6 +66,22 @@ export const checkOut = async (req, res) => {
 
     if (attendance.check_out_time) {
       return res.status(400).json({ message: 'You have already checked out for today' });
+    }
+
+    if (!check_out_latitude || !check_out_longitude) {
+      return res.status(400).json({ message: 'Location coordinates are required to check out.' });
+    }
+
+    // Geo-fence validation
+    const projects = await attendanceService.findWorkerProjects(user.user_id);
+    const geofenceResult = checkWorkerAgainstProjects(
+      Number(check_out_latitude),
+      Number(check_out_longitude),
+      projects
+    );
+
+    if (geofenceResult.status === 'OUTSIDE') {
+      return res.status(403).json({ message: 'You must be inside an assigned project\'s geofence to check out.' });
     }
 
     const updated = await attendanceService.updateCheckOut(

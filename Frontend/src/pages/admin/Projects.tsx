@@ -15,6 +15,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,7 +35,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain, FolderSearch } from 'lucide-react';
+import { Plus, Search, Calendar, MapPin, Users, ClipboardList, TreeDeciduous, Waves, Mountain, FolderSearch, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { projectsApi, usersApi } from '@/services/api';
@@ -220,6 +231,24 @@ export default function Projects() {
         title: 'Error',
         description: error.response?.data?.message || 'Failed to create project',
         variant: 'destructive'
+      });
+    }
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    try {
+      await projectsApi.delete(projectId);
+      toast({
+        title: 'Project Deleted',
+        description: 'Project and all related dependencies were permanently removed.',
+      });
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to delete project',
+        variant: 'destructive',
       });
     }
   };
@@ -460,6 +489,31 @@ export default function Projects() {
                         </Badge>
                       </div>
                     </div>
+                    {/* Add Delete Button */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete the project "{project.name}", along with all of its assigned tasks, manager reports, and assignment dependencies. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteProject(project.project_id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete Project
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

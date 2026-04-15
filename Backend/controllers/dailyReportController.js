@@ -11,7 +11,8 @@ export const createDailyReport = async (req, res) => {
     // Process uploaded files
     let imagePaths = [];
     if (req.files && req.files.length > 0) {
-      imagePaths = req.files.map(file => `/uploads/${file.filename}`);
+      // Cloudinary multer automatically stores the absolute URL string in file.path
+      imagePaths = req.files.map(file => file.path);
     }
 
     // Parse task_ids if it comes as a string (FormData array)
