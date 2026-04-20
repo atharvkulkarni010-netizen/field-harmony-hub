@@ -78,10 +78,18 @@ Server will run on `http://localhost:3000`
 
 ### Authentication
 - `POST /api/auth/login` - User login
-- `POST /api/auth/register` - Register new user (ADMIN only)
+- `POST /api/auth/logout` - User logout
+- `PUT /api/auth/change-password` - Change user password
+- `POST /api/auth/forgot-password` - Trigger password reset
+- `POST /api/auth/reset-password` - Reset password
+- `GET /api/auth/verify-email` - Verify email
 
 ### Users
+- `POST /api/users/register` - Register new user (ADMIN only)
 - `GET /api/users` - Get all users (ADMIN only)
+- `GET /api/users/managers` - Get all managers (ADMIN only)
+- `GET /api/users/workers` - Get all workers (ADMIN only)
+- `GET /api/users/profile` - Get current user profile
 - `GET /api/users/:user_id` - Get user details
 - `PUT /api/users/:user_id` - Update user
 - `DELETE /api/users/:user_id` - Delete user (ADMIN only)
@@ -139,6 +147,22 @@ Server will run on `http://localhost:3000`
 - `GET /api/manager-reports/:report_id` - Get report details
 - `PUT /api/manager-reports/:report_id` - Update report
 - `DELETE /api/manager-reports/:report_id` - Delete report
+
+### Analytics
+- `GET /api/analytics/public-stats` - Public portal stats
+- `GET /api/analytics/stats` - Admin/Manager dashboard stats
+- `GET /api/analytics/attendance` - Attendance trends
+- `GET /api/analytics/projects` - Project status summaries
+- `GET /api/analytics/activity` - Recent system activity
+- `GET /api/analytics/tasks-by-project` - Task distribution
+- `GET /api/analytics/monthly-attendance` - Monthly attendance charts
+- `GET /api/analytics/manager-stats` - Dashboard stats for specific managers
+- `GET /api/analytics/key-metrics` - Key performance metrics
+- `GET /api/analytics/weekly-progress` - Weekly project progress
+
+### Skills
+- `GET /api/skills` - Get all skills
+- `POST /api/skills` - Add a new skill
 
 ## Authentication
 
