@@ -18,7 +18,7 @@ const getTransporter = () => {
 export const sendWelcomeEmail = async (email, name, password, role, verificationToken) => {
   try {
     const port = process.env.PORT || 3000;
-    const backendUrl = `http://localhost:${port}`;
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${verificationToken}`;
 
     // If credentials are not set, log and return
@@ -155,7 +155,7 @@ export const sendOTPEmail = async (email, otp) => {
 export const sendVerificationEmail = async (email, token) => {
   try {
     const port = process.env.PORT || 3000;
-    const backendUrl = `http://localhost:${port}`;
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
     
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -201,7 +201,7 @@ export const sendVerificationEmail = async (email, token) => {
 export const sendAdminVerificationEmail = async (adminEmail, newUserName, newUserRole, token) => {
   try {
     const port = process.env.PORT || 3000;
-    const backendUrl = `http://localhost:${port}`;
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
     
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
