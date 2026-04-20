@@ -205,3 +205,15 @@ export const updateUserPassword = async (user_id, hashedPassword) => {
     connection.release();
   }
 };
+
+export const reassignWorkers = async (old_manager_id, new_manager_id) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      'UPDATE user SET manager_id = ? WHERE manager_id = ?',
+      [new_manager_id, old_manager_id]
+    );
+  } finally {
+    connection.release();
+  }
+};

@@ -73,7 +73,8 @@ export const usersApi = {
     manager_id?: string | null;
     skills?: string[];
   }) => api.post("/users/register", data),
-  deleteUser: (userId: string) => api.delete(`/users/${userId}`),
+  deleteUser: (userId: string, newManagerId?: string) => 
+    api.delete(`/users/${userId}${newManagerId ? `?new_manager_id=${newManagerId}` : ''}`),
   getProfile: () => api.get("/users/profile"),
   getManagerWorkers: (managerId: string) =>
     api.get(`/users/manager/${managerId}/workers`),

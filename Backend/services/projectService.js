@@ -190,3 +190,15 @@ export const deleteProject = async (project_id) => {
     connection.release();
   }
 };
+
+export const reassignProjects = async (old_manager_id, new_manager_id) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      'UPDATE project SET assigned_manager_id = ? WHERE assigned_manager_id = ?',
+      [new_manager_id, old_manager_id]
+    );
+  } finally {
+    connection.release();
+  }
+};

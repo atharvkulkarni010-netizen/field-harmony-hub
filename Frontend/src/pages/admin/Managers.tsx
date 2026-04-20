@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Search, Mail, FolderKanban, Users } from 'lucide-react';
+import { UserPlus, Search, Mail, FolderKanban, Users, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { usersApi } from '@/services/api';
 
@@ -34,6 +34,12 @@ export default function Managers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newManager, setNewManager] = useState({ name: '', email: '' });
+  
+  const [managerToDelete, setManagerToDelete] = useState<Manager | null>(null);
+  const [newManagerId, setNewManagerId] = useState<string>('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const { toast } = useToast();
 
   // Fetch managers from API
@@ -100,6 +106,38 @@ export default function Managers() {
     }
   };
 
+  const handleDeleteManager = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managerToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await usersApi.deleteUser(managerToDelete.user_id, newManagerId || undefined);
+      
+      setManagerToDelete(null);
+      setNewManagerId('');
+      setIsDeleteDialogOpen(false);
+      
+      toast({
+        title: 'Manager Deleted',
+        description: 'Manager has been removed successfully.',
+      });
+
+      // Refresh managers list
+      const managersResponse = await usersApi.getManagers();
+      setManagers(managersResponse.data);
+    } catch (error: any) {
+      console.error('Error deleting manager:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || 'Failed to delete manager',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -156,6 +194,47 @@ export default function Managers() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-display text-red-600">Delete Manager</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete {managerToDelete?.name}? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleDeleteManager} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="newManager">Reassign Workers & Projects To (Optional)</Label>
+                <select
+                  id="newManager"
+                  value={newManagerId}
+                  onChange={(e) => setNewManagerId(e.target.value)}
+                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">No Reassignment</option>
+                  {managers
+                    .filter((m) => m.user_id !== managerToDelete?.user_id)
+                    .map((m) => (
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.name} ({m.email})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDeleteDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="destructive" className="flex-1 rounded-xl" disabled={isDeleting}>
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </PageHeader>
 
       {/* Search */}
@@ -200,6 +279,20 @@ export default function Managers() {
                     </Badge>
                   </div>
                 </div>
+                
+                {/* Delete Button */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => {
+                    setManagerToDelete(manager);
+                    setNewManagerId(''); // Reset selection
+                    setIsDeleteDialogOpen(true);
+                  }}
+                  className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
