@@ -50,11 +50,15 @@ export const registerUser = async (req, res) => {
     // Create User with Verification Token (is_verified = false)
     const user = await userService.createUserWithVerification(name, email, randomPassword, role, verificationToken, manager_id, req.body.skills);
 
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const dynamicBackendUrl = `${protocol}://${host}`;
+
     // Send verification email directly to manager or via admin for others
     if (role === 'MANAGER') {
-      await sendVerificationEmail(email, verificationToken);
+      await sendVerificationEmail(email, verificationToken, dynamicBackendUrl);
     } else {
-      await sendAdminVerificationEmail(req.user.email, name, role, verificationToken);
+      await sendAdminVerificationEmail(req.user.email, name, role, verificationToken, dynamicBackendUrl);
     }
 
     // Return the user info without the password field

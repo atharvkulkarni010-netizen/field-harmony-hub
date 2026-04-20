@@ -243,7 +243,11 @@ export const register = async (req, res) => {
     const user = await userService.createUserWithVerification(name, email, password, role, verificationToken, manager_id);
 
     // 5. Send Verification Email
-    const emailSent = await emailService.sendVerificationEmail(email, verificationToken);
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const dynamicBackendUrl = `${protocol}://${host}`;
+    
+    const emailSent = await emailService.sendVerificationEmail(email, verificationToken, dynamicBackendUrl);
     
     if (!emailSent) {
       return res.status(201).json({ message: 'User created, but failed to send verification email. Please contact support.' });
@@ -279,12 +283,35 @@ export const verifyEmail = async (req, res) => {
       await emailService.sendCredentialsEmail(user.email, user.name, randomPassword, user.role);
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/login?verified=true`);
+    const frontendUrl = process.env.FRONTEND_URL;
+    if (frontendUrl && !frontendUrl.includes('localhost')) {
+      res.redirect(`${frontendUrl}/login?verified=true`);
+    } else {
+      res.send(`
+        <div style="font-family: Arial, sans-serif; text-align: center; margin-top: 100px;">
+          <div style="display: inline-block; padding: 40px; border-radius: 10px; background: #f0fdf4; border: 1px solid #bbf7d0;">
+            <h1 style="color: #166534; margin-bottom: 20px;">Email Verified!</h1>
+            <p style="color: #374151; font-size: 18px;">Your account has been successfully verified.</p>
+            <p style="color: #6b7280; margin-top: 20px;">You can now close this tab and return to the application to login.</p>
+          </div>
+        </div>
+      `);
+    }
   } catch (error) {
     console.error('Verification error:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/login?error=verification_failed`);
+    const frontendUrl = process.env.FRONTEND_URL;
+    if (frontendUrl && !frontendUrl.includes('localhost')) {
+      res.redirect(`${frontendUrl}/login?error=verification_failed`);
+    } else {
+      res.status(400).send(`
+        <div style="font-family: Arial, sans-serif; text-align: center; margin-top: 100px;">
+          <div style="display: inline-block; padding: 40px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca;">
+            <h1 style="color: #991b1b; margin-bottom: 20px;">Verification Failed</h1>
+            <p style="color: #374151; font-size: 18px;">The verification link is invalid or has expired.</p>
+          </div>
+        </div>
+      `);
+    }
   }
 };
 
@@ -318,7 +345,11 @@ export const registerAdmin = async (req, res) => {
     const user = await userService.createUserWithVerification(name, email, password, 'ADMIN', verificationToken, null);
 
     // 4. Send Verification Email
-    const emailSent = await emailService.sendVerificationEmail(email, verificationToken);
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.get('host');
+    const dynamicBackendUrl = `${protocol}://${host}`;
+    
+    const emailSent = await emailService.sendVerificationEmail(email, verificationToken, dynamicBackendUrl);
     
     if (!emailSent) {
       return res.status(201).json({ message: 'Admin created, but failed to send verification email. Please contact support.' });

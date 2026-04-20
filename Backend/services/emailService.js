@@ -15,10 +15,10 @@ const getTransporter = () => {
 };
 
 // Send welcome email
-export const sendWelcomeEmail = async (email, name, password, role, verificationToken) => {
+export const sendWelcomeEmail = async (email, name, password, role, verificationToken, reqHostUrl = null) => {
   try {
     const port = process.env.PORT || 3000;
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+    const backendUrl = reqHostUrl || process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${verificationToken}`;
 
     // If credentials are not set, log and return
@@ -152,10 +152,10 @@ export const sendOTPEmail = async (email, otp) => {
 };
 
 // Send Verification Email
-export const sendVerificationEmail = async (email, token) => {
+export const sendVerificationEmail = async (email, token, reqHostUrl = null) => {
   try {
     const port = process.env.PORT || 3000;
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+    const backendUrl = reqHostUrl || process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
     
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -198,10 +198,10 @@ export const sendVerificationEmail = async (email, token) => {
 };
 
 // Send Admin Verification Email (when Admin creates a user)
-export const sendAdminVerificationEmail = async (adminEmail, newUserName, newUserRole, token) => {
+export const sendAdminVerificationEmail = async (adminEmail, newUserName, newUserRole, token, reqHostUrl = null) => {
   try {
     const port = process.env.PORT || 3000;
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+    const backendUrl = reqHostUrl || process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
     
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
