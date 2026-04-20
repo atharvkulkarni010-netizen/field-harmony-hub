@@ -283,7 +283,12 @@ export const verifyEmail = async (req, res) => {
       await emailService.sendCredentialsEmail(user.email, user.name, randomPassword, user.role);
     }
 
-    const frontendUrl = process.env.FRONTEND_URL;
+    let frontendUrl = process.env.FRONTEND_URL;
+    if (frontendUrl) {
+      // Pick the first URL in case multiple are comma-separated for CORS
+      frontendUrl = frontendUrl.split(',')[0].trim();
+    }
+    
     if (frontendUrl && !frontendUrl.includes('localhost')) {
       res.redirect(`${frontendUrl}/login?verified=true`);
     } else {
@@ -299,7 +304,11 @@ export const verifyEmail = async (req, res) => {
     }
   } catch (error) {
     console.error('Verification error:', error);
-    const frontendUrl = process.env.FRONTEND_URL;
+    let frontendUrl = process.env.FRONTEND_URL;
+    if (frontendUrl) {
+      frontendUrl = frontendUrl.split(',')[0].trim();
+    }
+    
     if (frontendUrl && !frontendUrl.includes('localhost')) {
       res.redirect(`${frontendUrl}/login?error=verification_failed`);
     } else {
