@@ -18,7 +18,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'field-harmony-hub/reports',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+    allowedFormats: ['jpg', 'png', 'jpeg', 'webp'],
   },
 });
 
