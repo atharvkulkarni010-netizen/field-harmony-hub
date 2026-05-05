@@ -13,6 +13,19 @@ export const createLeaveRequest = async (user_id, start_date, end_date, reason) 
   }
 };
 
+export const autoRejectExpiredLeaves = async () => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      `UPDATE leave_request 
+       SET status = 'REJECTED', updated_at = CURRENT_TIMESTAMP 
+       WHERE status = 'PENDING' AND DATE(start_date) <= CURDATE()`
+    );
+  } finally {
+    connection.release();
+  }
+};
+
 export const findLeaveById = async (leave_id) => {
   const connection = await pool.getConnection();
   try {

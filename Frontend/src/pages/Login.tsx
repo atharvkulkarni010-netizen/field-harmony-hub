@@ -39,7 +39,7 @@ export default function Login() {
   const [stats, setStats] = useState({
     active_projects: 0,
     field_workers: 0,
-    acres_protected: 0
+    tasks_completed: 0
   });
 
   useEffect(() => {
@@ -330,8 +330,8 @@ export default function Login() {
               <p className="text-sm text-primary-foreground/70">Field Workers</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold">{stats.acres_protected > 0 ? `${(stats.acres_protected / 1000).toFixed(0)}k` : '0'}</p>
-              <p className="text-sm text-primary-foreground/70">Acres Protected</p>
+              <p className="text-3xl font-bold">{stats.tasks_completed > 0 ? `${stats.tasks_completed}+` : '0'}</p>
+              <p className="text-sm text-primary-foreground/70">Tasks Completed</p>
             </div>
           </div>
         </div>

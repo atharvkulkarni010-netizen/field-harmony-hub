@@ -112,6 +112,7 @@ export const tasksApi = {
   approve: (taskId: string) => api.post(`/tasks/${taskId}/approve`),
   reject: (taskId: string, reason: string) =>
     api.post(`/tasks/${taskId}/reject`, { reason }),
+  delete: (taskId: string | number) => api.delete(`/tasks/${taskId}`),
 };
 
 export const taskAssignmentsApi = {
@@ -162,10 +163,7 @@ export const leavesApi = {
 };
 
 export const reportsApi = {
-  submit: (data: FormData) =>
-    api.post("/daily-reports", data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    }),
+  submit: (data: FormData) => api.post("/daily-reports", data),
   getTaskReports: (taskId: string) => api.get(`/daily-reports/task/${taskId}`),
   getMyReports: () => api.get("/daily-reports/worker/me"), // This endpoint needs adjustment in backend if 'me' is not handled, but usually handled by /worker/:id with user.id
   getByWorker: (workerId: string) =>

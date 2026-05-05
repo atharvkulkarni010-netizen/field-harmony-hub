@@ -1,5 +1,5 @@
 import * as userService from '../services/userService.js';
-import { sendVerificationEmail, sendAdminVerificationEmail } from '../services/emailService.js';
+import { sendVerificationEmail } from '../services/emailService.js';
 import * as projectService from '../services/projectService.js';
 import { generateRandomPassword } from '../utils/passwordUtils.js';
 import crypto from 'crypto';
@@ -54,16 +54,16 @@ export const registerUser = async (req, res) => {
     const host = req.get('host');
     const dynamicBackendUrl = `${protocol}://${host}`;
 
-    // Send verification email directly to manager or via admin for others
-    if (role === 'MANAGER') {
-      await sendVerificationEmail(email, verificationToken, dynamicBackendUrl);
-    } else {
-      await sendAdminVerificationEmail(req.user.email, name, role, verificationToken, dynamicBackendUrl);
-    }
+    // Send verification email directly to the new user (manager or worker)
+    const emailSent = await sendVerificationEmail(email, verificationToken, dynamicBackendUrl);
+
+    const successMessage = emailSent 
+      ? `User created successfully. A verification email has been sent to the new ${role.toLowerCase()}.`
+      : `User created successfully, but failed to send the verification email. Please check your email service configuration.`;
 
     // Return the user info without the password field
     res.status(201).json({
-      message: 'User created successfully. ' + (role === 'MANAGER' ? 'A verification email has been sent to the new manager.' : 'An authorization email has been sent to your admin email address.'),
+      message: successMessage,
       user: {
         user_id: user.user_id,
         name: user.name,

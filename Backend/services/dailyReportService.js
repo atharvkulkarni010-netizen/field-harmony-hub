@@ -164,7 +164,12 @@ export const findTeamReports = async (manager_id, date) => {
   const connection = await pool.getConnection();
   try {
     let query = `
-      SELECT dr.*, u.name as worker_name, u.email as worker_email 
+      SELECT dr.*, u.name as worker_name, u.email as worker_email,
+      (SELECT JSON_ARRAYAGG(JSON_OBJECT('task_id', t.task_id, 'title', t.title, 'project_name', p.name))
+       FROM report_task rt 
+       JOIN task t ON rt.task_id = t.task_id 
+       JOIN project p ON t.project_id = p.project_id 
+       WHERE rt.report_id = dr.report_id) as tasks
       FROM daily_report dr 
       JOIN user u ON dr.user_id = u.user_id 
       WHERE u.manager_id = ?
@@ -180,7 +185,11 @@ export const findTeamReports = async (manager_id, date) => {
     query += " ORDER BY dr.report_date DESC, dr.created_at DESC";
 
     const [rows] = await connection.query(query, params);
-    return rows.map((row) => ({ ...row, images: parseImages(row.images) }));
+    return rows.map((row) => ({ 
+      ...row, 
+      images: parseImages(row.images),
+      tasks: typeof row.tasks === 'string' ? JSON.parse(row.tasks) : (row.tasks || [])
+    }));
   } finally {
     connection.release();
   }

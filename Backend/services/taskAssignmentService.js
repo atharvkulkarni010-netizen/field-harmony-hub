@@ -45,7 +45,7 @@ export const findAssignmentsByWorker = async (worker_id) => {
   const connection = await pool.getConnection();
   try {
     const [rows] = await connection.query(
-      'SELECT ta.assignment_id, ta.task_id, t.title, t.description, t.due_date, t.status, p.name as project_name, p.project_id FROM task_assignment ta JOIN task t ON ta.task_id = t.task_id JOIN project p ON t.project_id = p.project_id WHERE ta.worker_id = ? ORDER BY t.due_date',
+      'SELECT ta.assignment_id, ta.task_id, t.title, t.description, t.start_date, t.due_date, t.status, t.rejection_reason, p.name as project_name, p.project_id FROM task_assignment ta JOIN task t ON ta.task_id = t.task_id JOIN project p ON t.project_id = p.project_id WHERE ta.worker_id = ? ORDER BY t.start_date, t.due_date',
       [worker_id]
     );
     return rows;

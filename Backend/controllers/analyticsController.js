@@ -323,15 +323,16 @@ export const getPublicStats = async (req, res) => {
     );
     const fieldWorkers = workerRows[0].count;
 
-    // 3. Acres Protected (Calculated Estimation since no column exists)
-    // fl.random() or just a base + dynamic component
-    // Let's say base is 25000 and each active project adds ~50 acres on average
-    const acresProtected = 25000 + (activeProjects * 50);
+    // 3. Tasks Completed (Real metric instead of fake acres protected)
+    const [taskRows] = await connection.query(
+      "SELECT COUNT(*) as count FROM task WHERE status = 'Completed'"
+    );
+    const tasksCompleted = taskRows[0].count;
 
     res.json({
       active_projects: activeProjects,
       field_workers: fieldWorkers,
-      acres_protected: acresProtected
+      tasks_completed: tasksCompleted
     });
   } catch (error) {
     console.error('Error fetching public stats:', error);

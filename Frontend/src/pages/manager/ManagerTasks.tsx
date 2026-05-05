@@ -15,6 +15,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -31,6 +41,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -72,6 +83,7 @@ interface Task {
   description: string;
   project_id: number;
   status: string;
+  start_date?: string;
   due_date: string;
   project_name?: string;
   assignee_name?: string;
@@ -94,12 +106,16 @@ export default function ManagerTasks() {
     project_id: "",
     assignee_id: "",
     priority: "medium", // Backend doesn't have priority yet, keeping for UI
+    start_date: new Date().toISOString().split("T")[0],
     due_date: "",
     location: "", // Backend doesn't have location yet
   });
   const [rejectReason, setRejectReason] = useState("");
   const [taskToReject, setTaskToReject] = useState<number | null>(null);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [taskToApprove, setTaskToApprove] = useState<number | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
@@ -194,7 +210,7 @@ export default function ManagerTasks() {
       const taskRes = await tasksApi.create(newTask.project_id, {
         title: newTask.title,
         description: newTask.description,
-        start_date: new Date().toISOString().split("T")[0], // Default to today
+        start_date: newTask.start_date,
         due_date: newTask.due_date,
       });
       const createdTask = taskRes.data.task;
@@ -219,6 +235,7 @@ export default function ManagerTasks() {
         project_id: "",
         assignee_id: "",
         priority: "medium",
+        start_date: new Date().toISOString().split("T")[0],
         due_date: "",
         location: "",
       });
@@ -237,6 +254,12 @@ export default function ManagerTasks() {
     try {
       const backendStatus = reverseStatusMap[newStatus];
       if (!backendStatus) return; // Should not happen
+
+      if (backendStatus === "Completed") {
+        setTaskToApprove(taskId);
+        setIsApproveDialogOpen(true);
+        return;
+      }
 
       await tasksApi.updateStatus(taskId.toString(), backendStatus);
 
@@ -283,6 +306,13 @@ export default function ManagerTasks() {
     }
   };
 
+  const confirmApprove = async () => {
+    if (!taskToApprove) return;
+    await handleApprove(taskToApprove);
+    setIsApproveDialogOpen(false);
+    setTaskToApprove(null);
+  };
+
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!taskToReject || !rejectReason) return;
@@ -307,6 +337,24 @@ export default function ManagerTasks() {
       toast({
         title: "Error",
         description: "Failed to reject task",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    try {
+      await tasksApi.delete(taskId);
+      setTasks(tasks.filter(t => t.task_id !== taskId));
+      toast({
+        title: "Task Deleted",
+        description: "Task has been successfully removed.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete task",
         variant: "destructive",
       });
     }
@@ -363,13 +411,24 @@ export default function ManagerTasks() {
     const status = statusConfig[statusKey] || statusConfig["Yet to start"];
 
     return (
-      <Card className="nature-card animate-fade-in">
+      <Card className="nature-card animate-fade-in relative overflow-hidden">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-2">
-            <h4 className="font-medium line-clamp-1">{task.title}</h4>
-            <Badge variant="outline" className="text-xs">
-              {task.project_name}
-            </Badge>
+            <div className="flex flex-col gap-2 flex-1 overflow-hidden items-start">
+              <h4 className="font-medium line-clamp-1">{task.title}</h4>
+              <Badge variant="outline" className="text-xs max-w-full truncate">
+                {task.project_name}
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteTask(task.task_id)}
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8 p-0 shrink-0"
+              title="Delete Task"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
 
           <p className="text-sm text-muted-foreground line-clamp-2">
@@ -402,7 +461,10 @@ export default function ManagerTasks() {
                   size="sm"
                   variant="default"
                   className="h-8 bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => handleApprove(task.task_id)}
+                  onClick={() => {
+                    setTaskToApprove(task.task_id);
+                    setIsApproveDialogOpen(true);
+                  }}
                 >
                   <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
                 </Button>
@@ -536,17 +598,31 @@ export default function ManagerTasks() {
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={newTask.due_date}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, due_date: e.target.value })
-                  }
-                  className="rounded-xl"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={newTask.start_date}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, start_date: e.target.value })
+                    }
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate">End Date</Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    value={newTask.due_date}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, due_date: e.target.value })
+                    }
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
               <div className="flex gap-3 pt-4">
                 <Button
@@ -604,6 +680,28 @@ export default function ManagerTasks() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Task as Completed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this task as completed? This will signify that the work has been evaluated and accepted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsApproveDialogOpen(false);
+              setTaskToApprove(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmApprove} className="bg-green-600 hover:bg-green-700 text-white">
+              Yes, Mark as Completed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Filters */}
       <div className="space-y-4">

@@ -32,12 +32,27 @@ interface Task {
   title: string;
   description: string;
   project_name: string;
+  start_date?: string;
   due_date: string;
   status: "Yet to start" | "Ongoing" | "In Review" | "Completed";
   location?: string;
   assignment_id: number;
   rejection_reason?: string;
 }
+
+const getTimelineStatus = (task: Task) => {
+  if (!task.start_date || !task.due_date) return "active";
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const start = new Date(task.start_date);
+  start.setHours(0, 0, 0, 0);
+  const due = new Date(task.due_date);
+  due.setHours(23, 59, 59, 999);
+  
+  if (now < start) return "upcoming";
+  if (now > due && task.status !== "Completed") return "overdue";
+  return "active";
+};
 
 const statusConfig = {
   "Yet to start": {
@@ -131,17 +146,29 @@ export default function WorkerTasks() {
     const status = statusConfig[task.status] || statusConfig["Yet to start"];
     const StatusIcon = status.icon;
 
+    const timelineStatus = getTimelineStatus(task);
+    const isActionDisabled = timelineStatus !== "active";
+
     return (
-      <Card className="nature-card animate-fade-in">
-        <CardContent className="p-5 space-y-4">
+      <Card className="nature-card animate-fade-in relative overflow-hidden">
+        {timelineStatus === "upcoming" && (
+          <div className="absolute top-0 right-0 bg-secondary text-secondary-foreground text-xs px-3 py-1 rounded-bl-xl font-medium border-b border-l shadow-sm">
+            Starts {new Date(task.start_date!).toLocaleDateString()}
+          </div>
+        )}
+        {timelineStatus === "overdue" && (
+          <div className="absolute top-0 right-0 bg-destructive text-destructive-foreground text-xs px-3 py-1 rounded-bl-xl font-medium border-b border-l shadow-sm flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3" /> Overdue
+          </div>
+        )}
+        <CardContent className="p-5 space-y-4 pt-8">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <h4 className="font-semibold text-lg">{task.title}</h4>
+              <h4 className="font-semibold text-lg leading-tight pr-12">{task.title}</h4>
               <p className="text-sm text-muted-foreground">
                 {task.project_name}
               </p>
             </div>
-            {/* Priority is not in backend yet, handled via logic or omitted */}
           </div>
 
           {task.rejection_reason && task.status === "Ongoing" && (
@@ -156,14 +183,18 @@ export default function WorkerTasks() {
 
           <p className="text-sm text-muted-foreground">{task.description}</p>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>Due {new Date(task.due_date).toLocaleDateString()}</span>
+          <div className="grid grid-cols-2 gap-3 text-sm mt-2 border-t border-border/50 pt-3">
+            <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+              <Calendar className="w-4 h-4 shrink-0" />
+              <span>
+                {task.start_date && task.start_date !== task.due_date 
+                  ? `${new Date(task.start_date).toLocaleDateString()} - ${new Date(task.due_date).toLocaleDateString()}`
+                  : `Due ${new Date(task.due_date).toLocaleDateString()}`}
+              </span>
             </div>
             {task.location && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-muted-foreground col-span-2">
+                <MapPin className="w-4 h-4 shrink-0" />
                 <span className="truncate">{task.location}</span>
               </div>
             )}
@@ -180,7 +211,9 @@ export default function WorkerTasks() {
                   <AlertDialogTrigger asChild>
                     <Button
                       size="sm"
-                      className="rounded-lg gradient-forest text-primary-foreground"
+                      disabled={isActionDisabled}
+                      className="rounded-lg gradient-forest text-primary-foreground disabled:opacity-50"
+                      title={isActionDisabled ? "Task is not currently active" : "Start Task"}
                     >
                       <Play className="w-3 h-3 mr-1" />
                       Start
@@ -213,7 +246,9 @@ export default function WorkerTasks() {
                   <AlertDialogTrigger asChild>
                     <Button
                       size="sm"
-                      className="rounded-lg gradient-forest text-primary-foreground"
+                      disabled={isActionDisabled}
+                      className="rounded-lg gradient-forest text-primary-foreground disabled:opacity-50"
+                      title={isActionDisabled ? "Task is not currently active" : "Submit for Review"}
                     >
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       Submit for Review

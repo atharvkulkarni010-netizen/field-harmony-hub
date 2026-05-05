@@ -222,9 +222,12 @@ export default function SubmitReport() {
         {/* Description */}
         <Card className="nature-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-display">
-              <FileText className="w-5 h-5 text-primary" />
-              Work Description
+            <CardTitle className="flex items-center justify-between text-lg font-display">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Work Description
+              </div>
+              <span className="text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full font-medium">Required</span>
             </CardTitle>
           </CardHeader>
           <CardContent>

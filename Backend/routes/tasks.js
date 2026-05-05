@@ -43,7 +43,7 @@ router.post('/:task_id/submit', verifyToken, authorize('WORKER', 'MANAGER'), sub
 router.post('/:task_id/approve', verifyToken, authorize('MANAGER', 'ADMIN'), approveTask);
 router.post('/:task_id/reject', verifyToken, authorize('MANAGER', 'ADMIN'), rejectTask);
 
-// Delete task (ADMIN only)
-router.delete('/:task_id', verifyToken, authorize('ADMIN'), deleteTask);
+// Delete task (ADMIN or MANAGER of the project)
+router.delete('/:task_id', verifyToken, authorize('ADMIN', 'MANAGER'), deleteTask);
 
 export default router;

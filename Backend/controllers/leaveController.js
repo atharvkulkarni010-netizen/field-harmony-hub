@@ -20,6 +20,7 @@ export const applyForLeave = async (req, res) => {
 
 export const getWorkerLeaves = async (req, res) => {
   try {
+    await leaveService.autoRejectExpiredLeaves();
     const { worker_id } = req.params;
     const { user } = req;
 
@@ -45,6 +46,7 @@ export const getWorkerLeaves = async (req, res) => {
 
 export const getPendingLeaves = async (req, res) => {
   try {
+    await leaveService.autoRejectExpiredLeaves();
     const { user } = req;
 
     let leaves;
@@ -63,6 +65,7 @@ export const getPendingLeaves = async (req, res) => {
 
 export const getTeamLeaves = async (req, res) => {
   try {
+    await leaveService.autoRejectExpiredLeaves();
     const { user } = req;
 
     if (user.role !== 'MANAGER') {
