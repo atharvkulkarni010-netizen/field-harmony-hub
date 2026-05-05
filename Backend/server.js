@@ -28,18 +28,14 @@ app.use(helmet({
   crossOriginResourcePolicy: false, // Required if serving files like /uploads
 }));
 
-const allowedOrigins = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : ['http://localhost:5173'];
 app.use(cors({
-  origin: function (origin, callback) {
-    // Temporarily allow all localhost/127.0.0.1 requests to fix CORS issues during local dev/testing
-    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Reflects the request origin, allowing all origins
   credentials: true
 }));
+
+// Trust the first proxy (Render) to allow express-rate-limit to accurately identify client IPs
+// WITHOUT THIS, the rate limiter crashes the server, which disguises itself as a CORS error in the browser!
+app.set('trust proxy', 1);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
