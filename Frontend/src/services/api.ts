@@ -73,8 +73,14 @@ export const usersApi = {
     manager_id?: string | null;
     skills?: string[];
   }) => api.post("/users/register", data),
-  deleteUser: (userId: string, newManagerId?: string) => 
-    api.delete(`/users/${userId}${newManagerId ? `?new_manager_id=${newManagerId}` : ''}`),
+  deleteUser: (userId: string, newManagerId?: string, newWorkerId?: string) => {
+    let url = `/users/${userId}?`;
+    if (newManagerId) url += `new_manager_id=${newManagerId}&`;
+    if (newWorkerId) url += `new_worker_id=${newWorkerId}&`;
+    // Clean up trailing ? or &
+    url = url.replace(/[?&]$/, '');
+    return api.delete(url);
+  },
   getProfile: () => api.get("/users/profile"),
   getManagerWorkers: (managerId: string) =>
     api.get(`/users/manager/${managerId}/workers`),
@@ -163,9 +169,13 @@ export const leavesApi = {
 };
 
 export const reportsApi = {
-  submit: (data: FormData) => api.post("/daily-reports", data),
+  submit: (data: FormData) => api.post("/daily-reports", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  }),
   getTaskReports: (taskId: string) => api.get(`/daily-reports/task/${taskId}`),
-  getMyReports: () => api.get("/daily-reports/worker/me"), // This endpoint needs adjustment in backend if 'me' is not handled, but usually handled by /worker/:id with user.id
+  getMyReports: () => api.get("/daily-reports/worker/me"), 
   getByWorker: (workerId: string) =>
     api.get(`/daily-reports/worker/${workerId}`),
   getTeamReports: (date?: string) => {

@@ -202,3 +202,15 @@ export const reassignProjects = async (old_manager_id, new_manager_id) => {
     connection.release();
   }
 };
+
+export const deleteProjectsByManager = async (manager_id) => {
+  const connection = await pool.getConnection();
+  try {
+    const [projects] = await connection.query('SELECT project_id FROM project WHERE assigned_manager_id = ?', [manager_id]);
+    for (const p of projects) {
+      await deleteProject(p.project_id);
+    }
+  } finally {
+    connection.release();
+  }
+};

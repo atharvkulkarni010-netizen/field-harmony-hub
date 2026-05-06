@@ -140,3 +140,31 @@ export const isWorkerAssignedToTask = async (task_id, worker_id) => {
     connection.release();
   }
 };
+
+export const reassignWorkerTasks = async (old_worker_id, new_worker_id) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      'UPDATE task_assignment SET worker_id = ? WHERE worker_id = ?',
+      [new_worker_id, old_worker_id]
+    );
+  } finally {
+    connection.release();
+  }
+};
+
+export const deleteTasksByWorker = async (worker_id) => {
+  const connection = await pool.getConnection();
+  try {
+    const [rows] = await connection.query('SELECT task_id FROM task_assignment WHERE worker_id = ?', [worker_id]);
+    const taskIds = rows.map(r => r.task_id);
+    
+    if (taskIds.length > 0) {
+      await connection.query('DELETE FROM task_assignment WHERE task_id IN (?)', [taskIds]);
+      await connection.query('DELETE FROM report_task WHERE task_id IN (?)', [taskIds]);
+      await connection.query('DELETE FROM task WHERE task_id IN (?)', [taskIds]);
+    }
+  } finally {
+    connection.release();
+  }
+};

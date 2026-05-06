@@ -204,25 +204,53 @@ export default function Managers() {
                 Are you sure you want to delete {managerToDelete?.name}? This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleDeleteManager} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="newManager">Reassign Workers & Projects To (Optional)</Label>
-                <select
-                  id="newManager"
-                  value={newManagerId}
-                  onChange={(e) => setNewManagerId(e.target.value)}
-                  className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">No Reassignment</option>
-                  {managers
-                    .filter((m) => m.user_id !== managerToDelete?.user_id)
-                    .map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
-                        {m.name} ({m.email})
-                      </option>
-                    ))}
-                </select>
-              </div>
+            <form onSubmit={(e) => {
+              const otherManagers = managers.filter((m) => m.user_id !== managerToDelete?.user_id);
+              if (otherManagers.length > 0 && !newManagerId) {
+                e.preventDefault();
+                toast({
+                  title: 'Error',
+                  description: 'Please select a manager to reassign projects and workers to.',
+                  variant: 'destructive'
+                });
+                return;
+              }
+              handleDeleteManager(e);
+            }} className="space-y-4 mt-4">
+              {(() => {
+                const otherManagers = managers.filter((m) => m.user_id !== managerToDelete?.user_id);
+                if (otherManagers.length > 0) {
+                  return (
+                    <div className="space-y-2">
+                      <Label htmlFor="newManager" className="text-sm font-semibold">Reassign Workers & Projects To:</Label>
+                      <select
+                        id="newManager"
+                        value={newManagerId}
+                        onChange={(e) => setNewManagerId(e.target.value)}
+                        className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Select a manager</option>
+                        {otherManagers.map((m) => (
+                          <option key={m.user_id} value={m.user_id}>
+                            {m.name} ({m.email})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select a manager to inherit the deleted manager's projects and workers.
+                      </p>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="bg-destructive/10 text-destructive p-3 rounded-xl flex items-start gap-2">
+                      <p className="text-sm">
+                        <strong>Warning:</strong> There are no other managers available. All projects assigned to this manager will be permanently deleted, and their workers will become unassigned.
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
 
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1 rounded-xl" onClick={() => setIsDeleteDialogOpen(false)}>

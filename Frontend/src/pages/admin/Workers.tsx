@@ -237,11 +237,23 @@ export default function Workers() {
     setIsDialogOpen(true);
   };
 
+  const [reassignWorkerId, setReassignWorkerId] = useState<string>('');
+
   const handleDeleteWorker = async () => {
     if (!workerToDelete) return;
 
+    const otherWorkers = workers.filter(w => w.manager_id === workerToDelete.manager_id && w.user_id !== workerToDelete.user_id);
+    if (otherWorkers.length > 0 && !reassignWorkerId) {
+      toast({
+        title: 'Error',
+        description: 'Please select a worker to reassign the tasks to.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
-      await usersApi.deleteUser(workerToDelete.user_id);
+      await usersApi.deleteUser(workerToDelete.user_id, undefined, reassignWorkerId || undefined);
 
       toast({
         title: 'Worker Deleted',
@@ -250,6 +262,7 @@ export default function Workers() {
 
       setIsDeleteDialogOpen(false);
       setWorkerToDelete(null);
+      setReassignWorkerId('');
 
       // Refresh list
       setWorkers(workers.filter(w => w.user_id !== workerToDelete.user_id));
@@ -483,7 +496,13 @@ export default function Workers() {
       </PageHeader>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setWorkerToDelete(null);
+          setReassignWorkerId('');
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-display text-destructive">Delete Worker</DialogTitle>
@@ -491,6 +510,44 @@ export default function Workers() {
               Are you sure you want to delete <strong>{workerToDelete?.name}</strong>? This action cannot be undone and will remove all associated data.
             </DialogDescription>
           </DialogHeader>
+
+          {workerToDelete && (
+            <div className="py-4 space-y-4">
+              {(() => {
+                const otherWorkers = workers.filter(w => w.manager_id === workerToDelete.manager_id && w.user_id !== workerToDelete.user_id);
+                if (otherWorkers.length > 0) {
+                  return (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Reassign Tasks To:</Label>
+                      <Select value={reassignWorkerId} onValueChange={setReassignWorkerId}>
+                        <SelectTrigger className="w-full rounded-xl">
+                          <SelectValue placeholder="Select another worker" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {otherWorkers.map(w => (
+                            <SelectItem key={w.user_id} value={w.user_id}>{w.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select a worker under the same manager to inherit the deleted worker's tasks.
+                      </p>
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="bg-destructive/10 text-destructive p-3 rounded-xl flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                      <p className="text-sm">
+                        <strong>Warning:</strong> There are no other workers assigned to this manager. All tasks assigned to this worker will be permanently deleted.
+                      </p>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          )}
+
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="rounded-xl">
               Cancel

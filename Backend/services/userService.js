@@ -103,7 +103,7 @@ export const findAllUsers = async (role = null) => {
   try {
     let query = `
       SELECT 
-        u.user_id, u.name, u.email, u.role, u.manager_id, u.last_password_change, u.created_at,
+        u.user_id, u.name, u.email, u.role, u.manager_id, u.last_password_change, u.created_at, u.is_verified,
         (SELECT COUNT(*) 
          FROM task_assignment ta 
          JOIN task t ON ta.task_id = t.task_id 
@@ -118,10 +118,11 @@ export const findAllUsers = async (role = null) => {
          JOIN skill s ON us.skill_id = s.skill_id
          WHERE us.user_id = u.user_id) as skills
       FROM user u
+      WHERE u.is_verified = 1
     `;
     const params = [];
     if (role) {
-      query += ' WHERE u.role = ?';
+      query += ' AND u.role = ?';
       params.push(role);
     }
     const [rows] = await connection.query(query, params);
@@ -139,7 +140,7 @@ export const findUsersByManager = async (manager_id) => {
   try {
     const [rows] = await connection.query(
       `SELECT 
-        u.user_id, u.name, u.email, u.role, u.manager_id, u.last_password_change, u.created_at,
+        u.user_id, u.name, u.email, u.role, u.manager_id, u.last_password_change, u.created_at, u.is_verified,
         (SELECT COUNT(*) 
          FROM task_assignment ta 
          JOIN task t ON ta.task_id = t.task_id 
@@ -154,7 +155,7 @@ export const findUsersByManager = async (manager_id) => {
          JOIN skill s ON us.skill_id = s.skill_id
          WHERE us.user_id = u.user_id) as skills
        FROM user u 
-       WHERE u.manager_id = ?`,
+       WHERE u.manager_id = ? AND u.is_verified = 1`,
       [manager_id]
     );
     return rows.map(user => ({
@@ -212,6 +213,18 @@ export const reassignWorkers = async (old_manager_id, new_manager_id) => {
     await connection.query(
       'UPDATE user SET manager_id = ? WHERE manager_id = ?',
       [new_manager_id, old_manager_id]
+    );
+  } finally {
+    connection.release();
+  }
+};
+
+export const setWorkersManagerToNull = async (manager_id) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.query(
+      'UPDATE user SET manager_id = NULL WHERE manager_id = ?',
+      [manager_id]
     );
   } finally {
     connection.release();

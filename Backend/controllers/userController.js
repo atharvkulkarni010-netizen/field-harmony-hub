@@ -1,6 +1,7 @@
 import * as userService from '../services/userService.js';
 import { sendVerificationEmail } from '../services/emailService.js';
 import * as projectService from '../services/projectService.js';
+import * as taskService from '../services/taskService.js';
 import { generateRandomPassword } from '../utils/passwordUtils.js';
 import crypto from 'crypto';
 
@@ -173,17 +174,31 @@ export const updateUser = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { user_id } = req.params;
-    const { new_manager_id } = req.query;
+    const { new_manager_id, new_worker_id } = req.query;
 
     const userToDelete = await userService.findUserById(user_id);
     if (!userToDelete) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // If new_manager_id is provided and the user being deleted is a MANAGER
-    if (new_manager_id && userToDelete.role === 'MANAGER') {
-      await userService.reassignWorkers(user_id, new_manager_id);
-      await projectService.reassignProjects(user_id, new_manager_id);
+    // If the user being deleted is a MANAGER
+    if (userToDelete.role === 'MANAGER') {
+      if (new_manager_id) {
+        await userService.reassignWorkers(user_id, new_manager_id);
+        await projectService.reassignProjects(user_id, new_manager_id);
+      } else {
+        await userService.setWorkersManagerToNull(user_id);
+        await projectService.deleteProjectsByManager(user_id);
+      }
+    }
+
+    // If the user being deleted is a WORKER
+    if (userToDelete.role === 'WORKER') {
+      if (new_worker_id) {
+        await taskService.reassignWorkerTasks(user_id, new_worker_id);
+      } else {
+        await taskService.deleteTasksByWorker(user_id);
+      }
     }
 
     await userService.deleteUser(user_id);
