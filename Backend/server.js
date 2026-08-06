@@ -69,9 +69,9 @@ app.use('/api/skills', skillsRoutes);
 app.use((err, req, res, next) => {
   console.error(err);
   const isProd = process.env.NODE_ENV === 'production';
-  res.status(500).json({ 
-    message: 'Internal server error', 
-    ...(isProd ? {} : { error: err.message }) 
+  res.status(500).json({
+    message: 'Internal server error',
+    ...(isProd ? {} : { error: err.message })
   });
 });
 
