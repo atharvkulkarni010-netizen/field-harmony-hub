@@ -157,7 +157,7 @@ export const sendVerificationEmail = async (email, token, reqHostUrl = null) => 
     const port = process.env.PORT || 3000;
     const backendUrl = reqHostUrl || process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
-    
+
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.log('---------------------------------------------------');
       console.log('⚠️ EMAIL_USER or EMAIL_PASS not set in .env');
@@ -203,7 +203,7 @@ export const sendAdminVerificationEmail = async (adminEmail, newUserName, newUse
     const port = process.env.PORT || 3000;
     const backendUrl = reqHostUrl || process.env.BACKEND_URL || `http://localhost:${port}`;
     const verificationLink = `${backendUrl}/api/auth/verify-email?token=${token}`;
-    
+
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.log('---------------------------------------------------');
       console.log('⚠️ EMAIL_USER or EMAIL_PASS not set in .env');
